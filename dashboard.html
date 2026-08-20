@@ -63,7 +63,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 </head>
 <body>
 <div class="wrap" id="mainContent">
-<div class="nav-row"><button id="navMap">🗺️ Kembali ke Peta</button><button id="navAdmin">⚙️ Admin</button></div>
+<div class="nav-row"><button id="navMap">🗺️ Kembali ke Peta</button><button id="navMuat">📦 Muat Barang</button><button id="navAdmin">⚙️ Admin</button></div>
 <header><h1>📊 Dashboard Monitor Pengantaran</h1><p>Status pengiriman real-time berdasarkan rencana & laporan driver.</p></header>
 
 <div class="card">
@@ -150,6 +150,7 @@ document.getElementById('pwSubmit').addEventListener('click',submitPw);
 pwInput.addEventListener('keydown',e=>{if(e.key==='Enter')submitPw();});
 document.getElementById('navMap').addEventListener('click',()=>{window.location.href='./index.html';});
 document.getElementById('navAdmin').addEventListener('click',()=>{window.location.href='./admin.html';});
+document.getElementById('navMuat').addEventListener('click',()=>{window.location.href='./muat.html';});
 
 let RENCANA=null,DELIVERIES={},OUTLETS=[],outletByCc={},SKU_DETAIL={items:{}},MUAT_CHECK={checks:{}};
 

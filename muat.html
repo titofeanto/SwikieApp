@@ -90,7 +90,7 @@ input:focus{border-color:var(--ink-2);}
 </head>
 <body>
 <div class="wrap">
-<div class="nav-row"><button id="navMap">🗺️ Kembali ke Peta</button></div>
+<div class="nav-row"><button id="navMap">🗺️ Kembali ke Peta</button><button id="navAdmin">⚙️ Admin</button><button id="navDashboard">📊 Dashboard</button></div>
 <header><h1>✅ Verifikasi Muat Barang</h1><p>Cek jumlah barang per SKU yang dimuat ke kendaraan — bisa manual atau scan barcode. Tersimpan di Firebase, aman dipakai banyak orang bersamaan.</p></header>
 
 <div class="conn-status" id="connStatus"><div class="dot"></div><span id="connStatusText">Menghubungkan ke Firebase…</span></div>
@@ -452,6 +452,8 @@ async function saveInvoiceCheck(invoiceNo,btn){
 }
 
 document.getElementById('navMap').addEventListener('click',()=>{window.location.href='./index.html';});
+document.getElementById('navAdmin').addEventListener('click',()=>{window.location.href='./admin.html';});
+document.getElementById('navDashboard').addEventListener('click',()=>{window.location.href='./dashboard.html';});
 
 boot();
 </script>

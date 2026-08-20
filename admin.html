@@ -89,7 +89,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 </head>
 <body>
 <div class="wrap" id="mainContent">
-<div class="nav-row"><button id="navMap">🗺️ Kembali ke Peta</button><button id="navDashboard">📊 Dashboard</button></div>
+<div class="nav-row"><button id="navMap">🗺️ Kembali ke Peta</button><button id="navMuat">📦 Muat Barang</button><button id="navDashboard">📊 Dashboard</button></div>
 <header><h1>🧾 Rencana Pengantaran</h1><p>Upload invoice, pilih kendaraan, bagi otomatis, publikasikan ke tim — tersimpan di Firebase, aman untuk dipakai banyak orang bersamaan.</p></header>
 
 <div class="conn-status" id="connStatus"><div class="dot"></div><span id="connStatusText">Menghubungkan ke Firebase…</span></div>
@@ -181,6 +181,7 @@ document.getElementById('pwSubmit').addEventListener('click',submitPw);
 pwInput.addEventListener('keydown',e=>{if(e.key==='Enter')submitPw();});
 document.getElementById('navMap').addEventListener('click',()=>{window.location.href='./index.html';});
 document.getElementById('navDashboard').addEventListener('click',()=>{window.location.href='./dashboard.html';});
+document.getElementById('navMuat').addEventListener('click',()=>{window.location.href='./muat.html';});
 
 /* ===== CONFIG ===== */
 const VEHICLES_DEF = [
