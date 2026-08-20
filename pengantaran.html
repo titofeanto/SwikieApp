@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cek Barang & Konfirmasi Nilai</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="./firebase-config.js"></script>
+<style>
+:root{--ink:#0E2A3E;--ink-2:#173B54;--surface:#F5F6F3;--surface-2:#FFFFFF;--line:#DEE3DF;--muted:#5E6E71;--go:#1F8A4C;--go-dark:#186B3B;--live:#FF8A1E;--danger:#C64B3C;--radius:14px;--font-display:'Space Grotesk',system-ui,sans-serif;--font-body:'Inter',system-ui,-apple-system,sans-serif;}
+*{box-sizing:border-box;}body{margin:0;font-family:var(--font-body);background:var(--surface);color:var(--ink);}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 80px;}
+header h1{font-family:var(--font-display);font-size:20px;margin:0 0 4px;}header p{margin:0;color:var(--muted);font-size:13px;}
+.card{background:var(--surface-2);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(14,42,62,0.08);}
+.card h2{font-family:var(--font-display);font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px;}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;}
+input[type=text],input[type=number]{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;font-size:14px;font-family:var(--font-body);outline:none;background:var(--surface);color:var(--ink);}
+input:focus{border-color:var(--ink-2);}
+.btn{border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:var(--font-body);width:100%;}
+.btn-primary{background:var(--ink-2);color:#fff;}.btn-primary:disabled{background:#B7C0C7;cursor:not-allowed;}
+.btn-go{background:var(--go);color:#fff;}.btn-outline{background:var(--surface);color:var(--ink-2);border:1.5px solid var(--line);}
+.hint{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5;}.hint b{color:var(--ink-2);}
+.divider{height:1px;background:var(--line);margin:14px 0;}
+.outlet-hdr{margin-bottom:4px;}
+.outlet-hdr .name{font-family:var(--font-display);font-weight:700;font-size:17px;}
+.outlet-hdr .addr{font-size:12px;color:var(--muted);}
+.autocomplete{position:relative;}
+#outletResults{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface-2);border-radius:10px;box-shadow:0 6px 20px rgba(14,42,62,0.22);max-height:230px;overflow-y:auto;z-index:50;display:none;}
+.oresult{padding:10px 12px;border-bottom:1px solid var(--surface);cursor:pointer;font-size:13px;}
+.oresult:hover{background:var(--surface);}.oresult .rn{font-weight:700;}.oresult .rc{color:var(--muted);font-size:11px;}
+.inv-card{border:1.5px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;}
+.inv-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+.inv-head .invno{font-weight:700;font-size:13.5px;}
+.inv-head .vname{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;color:#fff;}
+.sku-line{border-bottom:1px solid var(--surface);padding:10px 0;}
+.sku-line .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;}
+.sku-line .sname{font-weight:600;font-size:13px;flex:1;}
+.sku-line .scode{color:var(--muted);font-size:10.5px;display:block;}
+.sku-line .exp-qty{font-size:11px;color:var(--muted);flex:none;text-align:right;}
+.sku-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.sku-fields .fld label{font-size:10px;margin-bottom:3px;}
+.sku-fields input{padding:7px 8px;font-size:12.5px;}
+.sku-fields input.reject{border-color:var(--danger);}
+.reject-subtotal{font-size:11px;color:var(--danger);font-weight:700;margin-top:4px;text-align:right;}
+.calc-box{background:var(--surface);border-radius:10px;padding:12px 14px;margin-top:10px;}
+.calc-row{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;}
+.calc-row.total{font-weight:700;font-size:13px;border-top:1px dashed var(--line);margin-top:6px;padding-top:8px;}
+.calc-row .neg{color:var(--danger);}
+.confirm-box{background:linear-gradient(135deg,var(--go),var(--go-dark));color:#fff;border-radius:12px;padding:14px;margin-top:10px;text-align:center;}
+.confirm-box.has-reject{background:linear-gradient(135deg,#E0762E,#B8531D);}
+.confirm-box .lbl{font-size:11px;opacity:0.9;font-weight:600;}
+.confirm-box .val{font-family:var(--font-display);font-weight:700;font-size:24px;margin:4px 0;}
+.inv-actions{display:flex;gap:8px;margin-top:12px;}
+.inv-actions .btn{flex:1;font-size:12.5px;padding:10px;}
+.status-pill{font-size:10px;font-weight:700;padding:4px 9px;border-radius:20px;background:#EAF7EE;color:var(--go-dark);}
+.status-pill.pending{background:var(--surface);color:var(--muted);}
+.empty-row{color:var(--muted);text-align:center;padding:30px;font-size:13px;}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:999;transition:transform .25s;box-shadow:0 4px 16px rgba(0,0,0,0.3);}
+#toast.show{transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>🔍 Cek Barang & Konfirmasi Nilai</h1><p>Cocokkan barang yang diturunkan, hitung otomatis nilai baru jika ada barang ditolak/dikembalikan.</p></header>
+
+<div class="card" id="searchCard" style="display:none;">
+<h2>Cari Outlet</h2>
+<div class="autocomplete">
+  <input type="text" id="outletSearch" placeholder="Ketik kode atau nama outlet…" autocomplete="off">
+  <div id="outletResults"></div>
+</div>
+</div>
+
+<div class="card" id="outletCard" style="display:none;">
+<div class="outlet-hdr"><div class="name" id="outletName"></div><div class="addr" id="outletAddr"></div></div>
+</div>
+
+<div id="invoiceList"></div>
+<div class="empty-row" id="emptyState" style="display:none;"></div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+let OUTLETS=[],RENCANA=null,SKU_DETAIL={items:{}},DELIVERIES={},outletByCc={};
+let currentCc=null,userLatLng=null,fbConnected=false;
+
+function parseParams(){
+  const sp=new URLSearchParams(location.search);
+  currentCc=sp.get('cc');
+}
+parseParams();
+
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmtRp(n){return'Rp '+Number(n).toLocaleString('id-ID');}
+let toastTimer;function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3600);}
+function deliveryKey(cc,invNo){return sanitizeDocId(cc+'|'+(invNo||''));}
+
+async function boot(){
+  fbConnected=FIREBASE_CONFIGURED&&await firebaseReady;
+  if(!fbConnected)showToast('Firebase belum terhubung — pengecekan tidak bisa disimpan.');
+  try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});}catch(e){}
+  if(fbConnected){
+    try{const doc=await db.collection('rencana').doc('current').get();if(doc.exists)RENCANA=doc.data();}catch(e){console.error(e);}
+    try{const snap=await db.collection('skuDetail').get();snap.forEach(doc=>{SKU_DETAIL.items[doc.id]=doc.data().items||[];});}catch(e){console.error(e);}
+    try{const snap=await db.collection('deliveries').get();snap.forEach(doc=>{DELIVERIES[doc.id]=doc.data();});}catch(e){console.error(e);}
+  }
+  SKU_DETAIL.items=SKU_DETAIL.items||{};
+
+  if('geolocation' in navigator){
+    navigator.geolocation.getCurrentPosition(pos=>{userLatLng={lat:pos.coords.latitude,lng:pos.coords.longitude};},()=>{},{enableHighAccuracy:true,timeout:10000});
+  }
+
+  if(currentCc&&outletByCc[currentCc]){
+    showOutlet(currentCc);
+  }else{
+    document.getElementById('searchCard').style.display='block';
+    setupSearch();
+  }
+}
+
+function setupSearch(){
+  const input=document.getElementById('outletSearch'),results=document.getElementById('outletResults');
+  input.addEventListener('input',()=>{
+    const q=input.value.trim().toLowerCase();
+    if(!q){results.style.display='none';return;}
+    const matches=OUTLETS.filter(o=>o.n.toLowerCase().includes(q)||o.cc.includes(q)).slice(0,25);
+    if(!matches.length){results.innerHTML='<div class="oresult">Tidak ditemukan</div>';results.style.display='block';return;}
+    results.innerHTML=matches.map(o=>'<div class="oresult" data-cc="'+o.cc+'"><div class="rn">'+escapeHtml(o.n)+'</div><div class="rc">'+o.cc+' · '+escapeHtml(o.t)+'</div></div>').join('');
+    results.style.display='block';
+  });
+  results.addEventListener('click',e=>{
+    const row=e.target.closest('.oresult');if(!row||!row.dataset.cc)return;
+    input.value='';results.style.display='none';
+    showOutlet(row.dataset.cc);
+  });
+  document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete'))results.style.display='none';});
+}
+
+function showOutlet(cc){
+  currentCc=cc;
+  const outlet=outletByCc[cc];
+  if(!outlet){showToast('Outlet tidak ditemukan.');return;}
+  document.getElementById('outletCard').style.display='block';
+  document.getElementById('outletName').textContent=outlet.n;
+  document.getElementById('outletAddr').textContent=(outlet.a||'-')+', '+outlet.t;
+  renderInvoices(cc);
+}
+
+function renderInvoices(cc){
+  const list=document.getElementById('invoiceList');
+  const empty=document.getElementById('emptyState');
+  if(!RENCANA||!RENCANA.vehicles){empty.style.display='block';empty.textContent='Rencana pengantaran belum tersedia.';list.innerHTML='';return;}
+  let stops=[];
+  RENCANA.vehicles.forEach(v=>(v.stops||[]).forEach(s=>{if(s.cc===cc)stops.push(Object.assign({},s,{vehicleId:v.id,vehicleName:v.name,vehicleHex:v.hex||'#555'}));}));
+  if(!stops.length){empty.style.display='block';empty.textContent='Tidak ada invoice untuk outlet ini dalam rencana saat ini.';list.innerHTML='';return;}
+  empty.style.display='none';
+
+  list.innerHTML='';
+  stops.forEach(s=>{
+    const skuLines=SKU_DETAIL.items[s.invoiceNo]||[];
+    const dk=deliveryKey(cc,s.invoiceNo);
+    const alreadyDelivered=DELIVERIES[dk];
+    const card=document.createElement('div');card.className='inv-card';
+    let skuHtml='';
+    if(skuLines.length){
+      skuLines.forEach((line,i)=>{
+        skuHtml+='<div class="sku-line" data-sku="'+escapeHtml(line.sku)+'" data-qty="'+line.qty+'">'
+          +'<div class="top"><div class="sname">'+escapeHtml(line.name)+'<span class="scode">'+escapeHtml(line.sku)+'</span></div><div class="exp-qty">invoice: '+line.qty+' pcs</div></div>'
+          +'<div class="sku-fields">'
+          +'<div class="fld"><label>Harga Satuan</label><input type="number" min="0" class="harga-input" value="'+(line.harga||0)+'"></div>'
+          +'<div class="fld"><label>Qty Ditolak</label><input type="number" min="0" max="'+line.qty+'" class="reject-input" value="0"></div>'
+          +'<div class="fld"><label>Qty Diterima</label><input type="number" class="accept-display" value="'+line.qty+'" disabled></div>'
+          +'</div><div class="reject-subtotal" style="display:none;"></div>'
+          +'</div>';
+      });
+    }else{
+      skuHtml='<div class="hint">Belum ada detail SKU untuk invoice ini — kalkulator selisih tidak bisa dihitung otomatis. Data SKU bisa diupload lewat muat.html.</div>';
+    }
+    card.innerHTML='<div class="inv-head"><span class="invno">'+escapeHtml(s.invoiceNo||'-')+'</span><span class="vname" style="background:'+s.vehicleHex+';">'+escapeHtml(s.vehicleName)+'</span></div>'
+      +skuHtml
+      +'<div class="calc-box" style="display:'+(skuLines.length?'block':'none')+';">'
+      +'<div class="calc-row"><span>Nilai Invoice Awal</span><span class="orig-val">'+fmtRp(s.invoice)+'</span></div>'
+      +'<div class="calc-row"><span>Total Nilai Ditolak</span><span class="neg reject-val">Rp 0</span></div>'
+      +'<div class="calc-row total"><span>Nilai Baru</span><span class="new-val">'+fmtRp(s.invoice)+'</span></div>'
+      +'</div>'
+      +'<div class="confirm-box" style="display:'+(skuLines.length?'block':'none')+';"><div class="lbl">NILAI YANG HARUS DIKONFIRMASI</div><div class="val confirm-val">'+fmtRp(s.invoice)+'</div></div>'
+      +'<div class="inv-actions">'
+      +(skuLines.length?'<button class="btn btn-outline copy-btn">📋 Salin Nilai Baru</button>':'')
+      +(alreadyDelivered?'<button class="btn btn-outline" disabled>✅ Sudah Dilaporkan '+new Date(alreadyDelivered.delivered_at).toLocaleString('id-ID')+'</button>':'<button class="btn btn-go save-btn">✅ Simpan & Tandai Terkirim</button>')
+      +'</div>';
+    list.appendChild(card);
+    wireInvoiceCard(card,s,cc);
+  });
+}
+
+function wireInvoiceCard(card,stop,cc){
+  const skuLines=[...card.querySelectorAll('.sku-line')];
+  function recalc(){
+    let totalReject=0;
+    const rejectedItems=[];
+    skuLines.forEach(line=>{
+      const sku=line.dataset.sku,qty=Number(line.dataset.qty);
+      const harga=Number(line.querySelector('.harga-input').value)||0;
+      let reject=Number(line.querySelector('.reject-input').value)||0;
+      if(reject>qty){reject=qty;line.querySelector('.reject-input').value=qty;}
+      const accept=qty-reject;
+      line.querySelector('.accept-display').value=accept;
+      const subtotal=reject*harga;
+      const subEl=line.querySelector('.reject-subtotal');
+      if(reject>0){subEl.style.display='block';subEl.textContent='Selisih: -'+fmtRp(subtotal);line.querySelector('.reject-input').classList.add('reject');}
+      else{subEl.style.display='none';line.querySelector('.reject-input').classList.remove('reject');}
+      totalReject+=subtotal;
+      if(reject>0){
+        const name=line.querySelector('.sname').childNodes[0].textContent.trim();
+        rejectedItems.push({sku,name,qty_rejected:reject,unit_price:harga,subtotal});
+      }
+    });
+    const newVal=stop.invoice-totalReject;
+    card.querySelector('.reject-val').textContent='-'+fmtRp(totalReject);
+    card.querySelector('.new-val').textContent=fmtRp(newVal);
+    const confirmBox=card.querySelector('.confirm-box');
+    if(confirmBox){
+      confirmBox.querySelector('.confirm-val').textContent=fmtRp(newVal);
+      confirmBox.classList.toggle('has-reject',totalReject>0);
+    }
+    return {totalReject,newVal,rejectedItems};
+  }
+  card.querySelectorAll('.harga-input,.reject-input').forEach(inp=>inp.addEventListener('input',recalc));
+  recalc();
+
+  const copyBtn=card.querySelector('.copy-btn');
+  if(copyBtn)copyBtn.addEventListener('click',()=>{
+    const{newVal}=recalc();
+    const text=String(Math.round(newVal));
+    navigator.clipboard.writeText(text).then(()=>showToast('Nilai baru ('+fmtRp(newVal)+') disalin ke clipboard.')).catch(()=>showToast('Gagal menyalin. Nilai baru: '+fmtRp(newVal)));
+  });
+
+  const saveBtn=card.querySelector('.save-btn');
+  if(saveBtn)saveBtn.addEventListener('click',()=>saveDeliveryCheck(cc,stop,recalc(),saveBtn));
+}
+
+async function saveDeliveryCheck(cc,stop,calc,btn){
+  if(!fbConnected){showToast('Belum terhubung ke Firebase.');return;}
+  const nowIso=new Date().toISOString();
+  if(calc.rejectedItems.length){
+    const list=calc.rejectedItems.map(r=>'• '+r.name+' x'+r.qty_rejected+' = -'+fmtRp(r.subtotal)).join('\n');
+    if(!confirm('Ada '+calc.rejectedItems.length+' item ditolak:\n\n'+list+'\n\nNilai baru yang dikonfirmasi: '+fmtRp(calc.newVal)+'\n\nSimpan & tandai terkirim?'))return;
+  }
+  btn.disabled=true;btn.textContent='Menyimpan…';
+  const dk=deliveryKey(cc,stop.invoiceNo);
+  const record={
+    cc,invoiceNo:stop.invoiceNo||'',
+    delivered_at:nowIso,
+    lat:userLatLng?userLatLng.lat:null,
+    lon:userLatLng?userLatLng.lng:null,
+    vehicle_id:stop.vehicleId,
+    original_value:stop.invoice,
+    rejected_value:calc.totalReject,
+    confirmed_value:calc.newVal,
+    rejected_items:calc.rejectedItems
+  };
+  try{
+    // Setiap invoice = satu dokumen sendiri, jadi tidak ada risiko tabrakan
+    // dengan driver lain yang menyimpan invoice/outlet lain di saat bersamaan.
+    await db.collection('deliveries').doc(dk).set(record);
+    DELIVERIES[dk]=record;
+    btn.textContent='✅ Tersimpan';
+    showToast('Pengecekan & nilai baru berhasil disimpan.');
+  }catch(err){
+    console.error(err);
+    showToast('Gagal menyimpan: '+err.message);
+    btn.disabled=false;btn.textContent='✅ Simpan & Tandai Terkirim';
+  }
+}
+
+boot();
+</script>
+</body>
+</html>

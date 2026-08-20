@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Peta Outlet Swikie</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="./firebase-config.js"></script>
+<style>
+:root{--ink:#0E2A3E;--ink-2:#173B54;--surface:#F5F6F3;--surface-2:#FFFFFF;--line:#DEE3DF;--muted:#5E6E71;--go:#1F8A4C;--go-dark:#186B3B;--live:#FF8A1E;--danger:#C64B3C;--radius:14px;--font-display:'Space Grotesk',system-ui,sans-serif;--font-body:'Inter',system-ui,-apple-system,sans-serif;}
+*{box-sizing:border-box;}html,body{margin:0;padding:0;height:100%;font-family:var(--font-body);background:var(--surface);color:var(--ink);}
+#app{position:relative;width:100%;height:100vh;height:100dvh;overflow:hidden;}
+#map{position:absolute;inset:0;background:#DCE4DE;}
+#topbar{position:absolute;top:0;left:0;right:0;z-index:1000;padding:calc(10px + env(safe-area-inset-top)) 10px 8px;background:linear-gradient(180deg,rgba(14,42,62,0.92) 0%,rgba(14,42,62,0) 100%);pointer-events:none;}
+#topbar .inner{pointer-events:auto;}
+.brand-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 2px;}
+.brand-dot{width:9px;height:9px;border-radius:50%;background:var(--live);box-shadow:0 0 0 3px rgba(255,176,32,0.25);}
+.brand-title{font-family:var(--font-display);font-weight:700;font-size:15px;color:#fff;letter-spacing:0.2px;}
+.brand-count{margin-left:auto;font-size:12px;color:#CFE0EA;background:rgba(255,255,255,0.12);padding:3px 9px;border-radius:20px;font-weight:600;}
+#menuBtn{flex:none;width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,0.16);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;}
+#menuDropdown{position:absolute;top:38px;right:0;background:var(--surface-2);border-radius:12px;box-shadow:0 6px 22px rgba(14,42,62,0.28);padding:6px;z-index:1500;display:none;min-width:180px;}
+#menuDropdown.show{display:block;}
+#menuDropdown button{width:100%;text-align:left;border:none;background:none;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:8px;}
+#menuDropdown button:hover{background:var(--surface);}
+.modal-overlay{position:fixed;inset:0;background:rgba(14,42,62,0.55);z-index:3000;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:var(--surface-2);border-radius:16px;padding:22px 20px;width:100%;max-width:320px;text-align:center;}
+.modal-box h3{font-family:var(--font-display);margin:0 0 6px;font-size:16px;}
+.modal-box p{font-size:12.5px;color:var(--muted);margin:0 0 14px;}
+.modal-box input{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:11px 12px;font-size:15px;text-align:center;letter-spacing:2px;outline:none;margin-bottom:10px;}
+.modal-box input:focus{border-color:var(--ink-2);}
+.modal-box .err-msg{color:var(--danger);font-size:12px;font-weight:600;min-height:16px;margin-bottom:8px;}
+.modal-box .btn-row{display:flex;gap:8px;}
+.modal-box .btn-row button{flex:1;border:none;border-radius:9px;padding:11px;font-weight:700;font-size:13px;cursor:pointer;}
+.modal-box .btn-cancel{background:var(--surface);color:var(--ink-2);}
+.modal-box .btn-submit{background:var(--ink-2);color:#fff;}
+.search-wrap{display:flex;align-items:center;gap:8px;background:var(--surface-2);border-radius:var(--radius);padding:9px 12px;box-shadow:0 3px 14px rgba(14,42,62,0.22);}
+.search-wrap svg{flex:none;opacity:0.55;}
+#searchInput{border:none;outline:none;flex:1;font-size:15px;font-family:var(--font-body);background:transparent;color:var(--ink);}
+#searchInput::placeholder{color:#9AA6A2;}
+#clearSearch{display:none;border:none;background:#EEF1EE;color:var(--muted);width:22px;height:22px;border-radius:50%;font-size:13px;cursor:pointer;flex:none;line-height:1;}
+.mode-row{display:flex;gap:8px;margin-top:8px;}
+.mode-btn{flex:1;text-align:center;padding:8px 6px;border-radius:20px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:rgba(255,255,255,0.16);color:#fff;}
+.mode-btn.active{background:var(--surface-2);color:var(--ink-2);}
+.vehicle-row{display:none;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none;flex-wrap:wrap;}
+.vehicle-row.show{display:flex;}.vehicle-row::-webkit-scrollbar{display:none;}
+.vchip{flex:none;padding:7px 12px;border-radius:20px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;opacity:0.55;border:2px solid transparent;}
+.vchip.active{opacity:1;border-color:#fff;}
+.filter-row{display:flex;gap:8px;margin-top:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+.filter-row::-webkit-scrollbar{display:none;}
+select.chip{appearance:none;-webkit-appearance:none;border:none;border-radius:20px;padding:7px 26px 7px 13px;font-size:12.5px;font-weight:600;color:var(--ink-2);background-color:var(--surface-2);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%235E6E71'/></svg>");background-repeat:no-repeat;background-position:right 10px center;box-shadow:0 2px 8px rgba(14,42,62,0.16);white-space:nowrap;flex:none;}
+select.chip.active{background-color:var(--ink-2);color:#fff;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%23fff'/></svg>");}
+#locateBtn{position:absolute;right:12px;z-index:1000;width:46px;height:46px;border-radius:50%;border:none;background:var(--surface-2);box-shadow:0 3px 12px rgba(14,42,62,0.3);display:flex;align-items:center;justify-content:center;cursor:pointer;bottom:112px;}
+#locateBtn.following{background:var(--ink-2);}#locateBtn.following svg path,#locateBtn.following svg circle{stroke:#fff;}
+#gpsStatus{position:absolute;left:12px;z-index:1000;background:var(--surface-2);border-radius:20px;padding:6px 12px 6px 10px;font-size:11.5px;font-weight:600;color:var(--muted);box-shadow:0 3px 10px rgba(14,42,62,0.18);display:flex;align-items:center;gap:6px;max-width:150px;bottom:112px;}
+#gpsStatus .dot{width:7px;height:7px;border-radius:50%;background:var(--danger);flex:none;}
+#gpsStatus.ok .dot{background:var(--go);}#gpsStatus.wait .dot{background:var(--live);animation:blink 1s infinite;}
+@keyframes blink{50%{opacity:0.3;}}
+#sheet{position:absolute;left:0;right:0;bottom:0;z-index:1000;background:var(--surface-2);border-radius:20px 20px 0 0;box-shadow:0 -6px 24px rgba(14,42,62,0.25);display:flex;flex-direction:column;transform:translateY(calc(100% - 96px));transition:transform .28s cubic-bezier(.2,.8,.3,1);max-height:78vh;touch-action:none;}
+#sheet.open{transform:translateY(0);}
+#sheetHandle{padding:10px 0 6px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;flex:none;}
+#sheetHandle .bar{width:38px;height:4px;border-radius:3px;background:var(--line);}
+#sheetSummary{display:flex;align-items:center;justify-content:space-between;width:100%;padding:0 18px;}
+#sheetSummary .label{font-family:var(--font-display);font-weight:700;font-size:14.5px;}
+#sheetSummary .sub{font-size:12px;color:var(--muted);}
+#sheetList{overflow-y:auto;padding:2px 10px 20px;flex:1;-webkit-overflow-scrolling:touch;}
+.outlet-row{display:flex;align-items:center;gap:11px;padding:11px 8px;border-bottom:1px solid var(--surface);cursor:pointer;}
+.outlet-row:active{background:var(--surface);}
+.outlet-idx{flex:none;width:34px;height:34px;border-radius:10px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:12px;color:var(--ink-2);}
+.outlet-info{flex:1;min-width:0;}.outlet-name{font-weight:700;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.outlet-meta{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.outlet-dist{flex:none;font-size:11px;font-weight:700;color:var(--go-dark);text-align:right;min-width:44px;}
+.outlet-go{flex:none;width:34px;height:34px;border-radius:50%;background:var(--go);display:flex;align-items:center;justify-content:center;}
+#emptyState{padding:30px 20px;text-align:center;color:var(--muted);font-size:13px;display:none;}
+.leaflet-popup-content-wrapper{border-radius:14px;padding:0;overflow:hidden;}
+.leaflet-popup-content{margin:0;width:240px !important;}
+.pop-body{padding:13px 14px 12px;}.pop-name{font-family:var(--font-display);font-weight:700;font-size:14px;margin-bottom:3px;}
+.pop-addr{font-size:11.5px;color:var(--muted);margin-bottom:2px;}
+.pop-tags{display:flex;gap:5px;margin:7px 0 10px;flex-wrap:wrap;}
+.pop-tag{font-size:10px;font-weight:700;background:var(--surface);color:var(--ink-2);padding:3px 8px;border-radius:20px;}
+.pop-nav{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--go);color:#fff;text-decoration:none;font-weight:700;font-size:12.5px;padding:9px 0;border-radius:9px;margin-bottom:6px;}
+.pop-deliver{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--live);color:#fff;text-decoration:none;font-weight:700;font-size:12.5px;padding:9px 0;border-radius:9px;cursor:pointer;border:none;width:100%;}
+.pop-check{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--ink-2);color:#fff;text-decoration:none;font-weight:700;font-size:12.5px;padding:9px 0;border-radius:9px;margin-bottom:6px;}
+.pop-deliver.done{background:#ccc;color:#666;cursor:default;}
+.pop-delivered-info{font-size:10.5px;color:var(--go-dark);margin-top:4px;text-align:center;}
+.inv-list{margin:6px 0 8px;max-height:150px;overflow-y:auto;}
+.inv-row{font-size:11.5px;padding:5px 2px;border-bottom:1px solid var(--surface);}
+.inv-row.done{color:var(--go-dark);font-weight:600;}
+.inv-row label{display:flex;align-items:center;gap:7px;cursor:pointer;}
+.inv-row input[type=checkbox]{width:15px;height:15px;flex:none;}
+.leaflet-popup-tip{display:none;}.leaflet-popup-close-button{color:#fff!important;top:8px!important;right:8px!important;}
+.marker-outlet{width:26px;height:26px;border-radius:50% 50% 50% 0;background:var(--ink-2);transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.35);}
+.marker-outlet.delivered{background:#999;}
+.marker-outlet.partial{background:#E6A700;}
+.live-marker{width:22px;height:22px;position:relative;}
+.live-marker .pulse{position:absolute;inset:-14px;border-radius:50%;background:rgba(255,138,30,0.35);animation:pulse 1.8s ease-out infinite;}
+.live-marker .core{position:absolute;inset:0;border-radius:50%;background:var(--live);border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.15);}
+@keyframes pulse{0%{transform:scale(0.3);opacity:0.9;}100%{transform:scale(1.6);opacity:0;}}
+.marker-cluster-custom{background:var(--ink-2);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:12.5px;border:3px solid rgba(255,255,255,0.85);box-shadow:0 2px 6px rgba(0,0,0,0.3);}
+.route-fab{position:absolute;left:12px;right:12px;z-index:1000;bottom:112px;background:var(--go);color:#fff;border:none;border-radius:12px;padding:12px 14px;font-weight:700;font-size:13.5px;display:none;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(31,138,76,0.4);cursor:pointer;}
+.route-fab.show{display:flex;}
+#toast{position:absolute;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translateX(-50%) translateY(-60px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:2000;box-shadow:0 4px 16px rgba(0,0,0,0.3);transition:transform .25s ease;max-width:86%;text-align:center;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+@media(min-width:720px){#topbar{padding-left:16px;padding-right:16px;}.inner{max-width:420px;}#sheet{max-width:420px;left:16px;right:auto;border-radius:20px;bottom:16px;}#locateBtn{right:16px!important;}.route-fab{max-width:420px;}}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="map"></div>
+<div id="topbar"><div class="inner">
+<div class="brand-row"><div class="brand-dot"></div><div class="brand-title">Peta Outlet Swikie</div><div class="brand-count" id="countBadge">0 outlet</div><div style="position:relative;"><button id="menuBtn">⋯</button><div id="menuDropdown"><button id="gotoDashboard">📊 Dashboard Monitor</button><button id="gotoAdmin">⚙️ Halaman Admin</button></div></div></div>
+<div class="search-wrap"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#5E6E71" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="#5E6E71" stroke-width="2" stroke-linecap="round"/></svg><input id="searchInput" type="text" placeholder="Cari nama outlet / alamat…" autocomplete="off"><button id="clearSearch">✕</button></div>
+<div class="mode-row" id="modeRow" style="display:none;"><button class="mode-btn active" id="modeAll">Semua Outlet</button><button class="mode-btn" id="modePlan">Rencana Pengantaran</button></div>
+<div class="filter-row" id="filterRow"><select id="filterTown" class="chip"><option value="">Semua Wilayah</option></select><select id="filterSalesman" class="chip"><option value="">Semua Salesman</option></select><select id="filterDay" class="chip"><option value="">Semua Hari PJP</option></select></div>
+<div class="vehicle-row" id="vehicleRow"></div>
+</div></div>
+<div id="gpsStatus" class="wait"><div class="dot"></div><span id="gpsText">Mencari GPS…</span></div>
+<button id="locateBtn" title="Ikuti lokasi saya"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="#0E2A3E" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="#0E2A3E" stroke-width="2" stroke-linecap="round"/></svg></button>
+<button class="route-fab" id="routeFab"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l9 20-9-6-9 6 9-20z" fill="#fff"/></svg><span id="routeFabText">Buka Rute di Google Maps</span></button>
+<div id="sheet"><div id="sheetHandle"><div class="bar"></div><div id="sheetSummary"><div><div class="label" id="sheetLabel">0 outlet</div><div class="sub" id="sheetSub">Memuat data…</div></div><svg id="sheetChevron" width="18" height="18" viewBox="0 0 24 24" fill="none" style="transition:transform .25s;"><path d="M6 9l6 6 6-6" stroke="#5E6E71" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div id="sheetList"></div><div id="emptyState">Tidak ada outlet yang cocok.</div></div>
+<div id="toast"></div>
+<div class="modal-overlay" id="pwModal">
+  <div class="modal-box">
+    <h3>🔒 Masuk ke Admin</h3>
+    <p>Masukkan password untuk melanjutkan ke halaman admin.</p>
+    <input type="password" id="pwInput" placeholder="Password" autocomplete="off" inputmode="text">
+    <div class="err-msg" id="pwErr"></div>
+    <div class="btn-row">
+      <button class="btn-cancel" id="pwCancel">Batal</button>
+      <button class="btn-submit" id="pwSubmit">Masuk</button>
+    </div>
+  </div>
+</div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+/* ===== State ===== */
+let OUTLETS=[],RENCANA=null,DELIVERIES={},outletByCc={};
+let currentMode='all',currentVehicle='all',currentFiltered=[];
+let userLatLng=null,liveMarker=null,following=true,firstFix=true;
+let fbConnected=false;
+
+/* ===== Boot ===== */
+async function boot(){
+  try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();}catch(e){showToast('Gagal memuat outlets.json');return;}
+  OUTLETS.forEach((o,i)=>{o.id=i;outletByCc[o.cc]=o;});
+
+  fbConnected = FIREBASE_CONFIGURED && await firebaseReady;
+  if(fbConnected){
+    try{
+      const doc=await db.collection('rencana').doc('current').get();
+      if(doc.exists)RENCANA=doc.data();
+    }catch(e){console.error('Gagal memuat rencana:',e);}
+    // Real-time listener: peta otomatis update begitu ada laporan baru dari driver lain,
+    // tanpa perlu refresh manual — penting karena dipakai banyak orang bersamaan.
+    db.collection('deliveries').onSnapshot(snap=>{
+      snap.docChanges().forEach(change=>{
+        if(change.type==='removed')return;
+        const d=change.doc.data();
+        DELIVERIES[change.doc.id]=d;
+      });
+      if(currentMode==='plan')applyFilters();
+    }, err=>console.error('Listener deliveries gagal:',err));
+  }else{
+    showToast('Firebase belum terhubung. Peta tetap bisa dipakai untuk browsing outlet.');
+  }
+  initApp();
+}
+
+function initApp(){
+  map=L.map('map',{zoomControl:false,attributionControl:true}).setView([-1.0,131.15],9);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  clusterGroup=L.markerClusterGroup({maxClusterRadius:55,iconCreateFunction:c=>{const n=c.getChildCount();const sz=n>50?46:n>15?40:34;return L.divIcon({html:'<div class="marker-cluster-custom" style="width:'+sz+'px;height:'+sz+'px;">'+n+'</div>',className:'',iconSize:null});}});
+  OUTLETS.forEach(o=>{const m=L.marker([o.lat,o.lon],{icon:outletIcon()});m.bindPopup(popupHtml(o));m.outletId=o.id;markers[o.id]=m;});
+  map.addLayer(clusterGroup);
+  setupFilters();setupModeAndVehicles();setupSheet();setupGPS();setupRouteFab();
+  if(RENCANA&&RENCANA.vehicles&&RENCANA.vehicles.length){document.getElementById('modeRow').style.display='flex';buildVehicleChips();}
+  applyFilters();
+}
+
+/* ===== Helpers ===== */
+let map,clusterGroup,markers={};
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmtRp(n){return'Rp '+Number(n).toLocaleString('id-ID');}
+function haversine(lat1,lon1,lat2,lon2){const R=6371,toRad=d=>d*Math.PI/180,dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1),a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+function gmapsUrl(lat,lon){return'https://www.google.com/maps/dir/?api=1&destination='+lat+','+lon+'&travelmode=driving';}
+function deliveryKey(cc,invoiceNo){return sanitizeDocId(cc+'|'+(invoiceNo||''));}
+function isDelivered(cc,invoiceNo){return!!DELIVERIES[deliveryKey(cc,invoiceNo)];}
+
+function outletIcon(color){return L.divIcon({className:'',html:'<div class="marker-outlet" style="'+(color?'background:'+color:'')+'"></div>',iconSize:[26,26],iconAnchor:[13,26],popupAnchor:[0,-24]});}
+function deliveredIcon(){return L.divIcon({className:'',html:'<div class="marker-outlet delivered"></div>',iconSize:[26,26],iconAnchor:[13,26],popupAnchor:[0,-24]});}
+function partialIcon(){return L.divIcon({className:'',html:'<div class="marker-outlet partial"></div>',iconSize:[26,26],iconAnchor:[13,26],popupAnchor:[0,-24]});}
+
+function popupHtml(o){
+  const day=o.p||'-';
+  let tags='<span class="pop-tag">'+escapeHtml(o.s||'-')+'</span><span class="pop-tag">'+escapeHtml(day)+'</span>';
+  return'<div class="pop-body"><div class="pop-name">'+escapeHtml(o.n)+'</div><div class="pop-addr">'+escapeHtml(o.a||'-')+', '+escapeHtml(o.t)+'</div><div class="pop-tags">'+tags+'</div><a class="pop-nav" href="'+gmapsUrl(o.lat,o.lon)+'" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l9 20-9-6-9 6 9-20z" fill="#fff"/></svg> Navigasi</a></div>';
+}
+
+/* Popup for "Rencana Pengantaran" mode: groups ALL invoices belonging to one outlet
+   into a single popup with a checkbox per invoice, so nothing gets silently
+   overwritten when an outlet has more than one invoice assigned. */
+window._outletStopsRegistry={};
+function popupHtmlGrouped(o,stops){
+  const vehOf=id=>RENCANA.vehicles.find(v=>v.id===id);
+  let rows='';
+  stops.forEach((s,i)=>{
+    const del=DELIVERIES[deliveryKey(o.cc,s.invoiceNo)];
+    if(del){
+      rows+='<div class="inv-row done">✅ '+escapeHtml(s.invoiceNo||'(tanpa no)')+' · '+fmtRp(s.invoice)+'</div>';
+    }else{
+      rows+='<div class="inv-row"><label><input type="checkbox" id="chk_'+escapeHtml(o.cc)+'_'+i+'" checked> '+escapeHtml(s.invoiceNo||'(tanpa no)')+' · '+fmtRp(s.invoice)+'</label></div>';
+    }
+  });
+  const allDelivered=stops.every(s=>DELIVERIES[deliveryKey(o.cc,s.invoiceNo)]);
+  const vehTags=[...new Set(stops.map(s=>s.vehicleId))].map(vid=>{const v=vehOf(vid);return'<span class="pop-tag" style="background:'+(v?v.hex:'#999')+';color:#fff;">'+(v?escapeHtml(v.name):'Mobil ?')+'</span>';}).join('');
+  let actionHtml='';
+  if(!allDelivered&&fbConnected){
+    actionHtml+='<a class="pop-check" href="./pengantaran.html?cc='+encodeURIComponent(o.cc)+'" target="_blank">🔍 Cek Barang & Nilai</a>';
+  }
+  if(allDelivered)actionHtml+='<div class="pop-delivered-info">✅ Semua invoice outlet ini sudah terkirim</div>';
+  else if(fbConnected)actionHtml+='<button class="pop-deliver" onclick="confirmDeliveryForOutlet(\''+escapeHtml(o.cc)+'\')">📍 Laporkan Terkirim (cepat)</button>';
+  return'<div class="pop-body"><div class="pop-name">'+escapeHtml(o.n)+'</div><div class="pop-addr">'+escapeHtml(o.a||'-')+', '+escapeHtml(o.t)+'</div><div class="pop-tags">'+vehTags+'</div><div class="inv-list">'+rows+'</div><a class="pop-nav" href="'+gmapsUrl(o.lat,o.lon)+'" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l9 20-9-6-9 6 9-20z" fill="#fff"/></svg> Navigasi</a>'+actionHtml+'</div>';
+}
+
+/* ===== Delivery Reporting ===== */
+window.confirmDeliveryForOutlet=function(cc){
+  const stops=window._outletStopsRegistry[cc]||[];
+  const pending=stops.filter(s=>!DELIVERIES[deliveryKey(cc,s.invoiceNo)]);
+  if(!pending.length){showToast('Semua invoice outlet ini sudah terkirim.');return;}
+  const checked=[],unchecked=[];
+  pending.forEach((s,i)=>{
+    const cb=document.getElementById('chk_'+cc+'_'+i);
+    if(cb&&cb.checked)checked.push(s);else unchecked.push(s);
+  });
+  if(!checked.length){showToast('Pilih minimal 1 invoice untuk dilaporkan.');return;}
+  let msg;
+  if(pending.length===1){
+    msg='Tandai outlet ini sebagai terkirim?';
+  }else if(!unchecked.length){
+    msg='Tandai SEMUA '+checked.length+' invoice di outlet ini sebagai terkirim?';
+  }else{
+    msg='Anda akan menandai '+checked.length+' dari '+pending.length+' invoice sebagai TERKIRIM.\n\n'+unchecked.length+' invoice berikut akan TETAP BELUM terkirim:\n'+unchecked.map(s=>'• '+(s.invoiceNo||'(tanpa no)')+' — '+fmtRp(s.invoice)).join('\n')+'\n\nLanjutkan?';
+  }
+  if(!confirm(msg))return;
+  doReportDelivery(cc,checked);
+};
+
+async function doReportDelivery(cc,stopsToReport){
+  if(!fbConnected){showToast('Belum terhubung ke Firebase.');return;}
+  if(!userLatLng){showToast('GPS belum aktif — izinkan akses lokasi dulu.');return;}
+  showToast('Mengirim laporan…');
+  const nowIso=new Date().toISOString();
+  try{
+    // Setiap invoice tersimpan sebagai dokumen terpisah — driver lain yang
+    // melapor di outlet BERBEDA pada saat bersamaan tidak akan pernah bentrok,
+    // karena masing-masing menulis ke dokumen yang berbeda.
+    const batch=db.batch();
+    stopsToReport.forEach(s=>{
+      const key=deliveryKey(cc,s.invoiceNo);
+      const record={cc,invoiceNo:s.invoiceNo||'',delivered_at:nowIso,lat:userLatLng.lat,lon:userLatLng.lng,vehicle_id:s.vehicleId};
+      batch.set(db.collection('deliveries').doc(key),record);
+      DELIVERIES[key]=record;
+    });
+    await batch.commit();
+    updateOutletMarker(cc);
+    showToast('✅ '+stopsToReport.length+' invoice berhasil dilaporkan terkirim.');
+  }catch(err){
+    console.error('Delivery report failed:',err);
+    showToast('Gagal mengirim laporan: '+err.message);
+  }
+}
+
+function updateOutletMarker(cc){
+  const outlet=outletByCc[cc];if(!outlet)return;
+  const stops=window._outletStopsRegistry[cc]||[];
+  const m=markers[outlet.id];if(!m)return;
+  const deliveredCount=stops.filter(s=>DELIVERIES[deliveryKey(cc,s.invoiceNo)]).length;
+  let icon;
+  if(!stops.length)icon=outletIcon();
+  else if(deliveredCount===0)icon=outletIcon(stops[0].vehicleHex);
+  else if(deliveredCount<stops.length)icon=partialIcon();
+  else icon=deliveredIcon();
+  m.setIcon(icon);
+  m.setPopupContent(popupHtmlGrouped(outlet,stops));
+}
+
+/* ===== Filters ===== */
+function uniqueSorted(arr){return[...new Set(arr.filter(v=>v))].sort((a,b)=>a.localeCompare(b));}
+const dayOrder=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+let townSel,salesSel,daySel,searchInput,clearSearchBtn;
+function setupFilters(){
+  townSel=document.getElementById('filterTown');salesSel=document.getElementById('filterSalesman');daySel=document.getElementById('filterDay');
+  searchInput=document.getElementById('searchInput');clearSearchBtn=document.getElementById('clearSearch');
+  uniqueSorted(OUTLETS.map(o=>o.t)).forEach(t=>{const opt=document.createElement('option');opt.value=t;opt.textContent=t;townSel.appendChild(opt);});
+  uniqueSorted(OUTLETS.map(o=>o.s)).forEach(s=>{const opt=document.createElement('option');opt.value=s;opt.textContent=s;salesSel.appendChild(opt);});
+  uniqueSorted(OUTLETS.map(o=>o.p)).sort((a,b)=>dayOrder.indexOf(a)-dayOrder.indexOf(b)).forEach(d=>{const opt=document.createElement('option');opt.value=d;opt.textContent=d;daySel.appendChild(opt);});
+  [townSel,salesSel,daySel].forEach(sel=>sel.addEventListener('change',()=>{sel.classList.toggle('active',!!sel.value);applyFilters();}));
+  searchInput.addEventListener('input',()=>{clearSearchBtn.style.display=searchInput.value?'block':'none';applyFilters();});
+  clearSearchBtn.addEventListener('click',()=>{searchInput.value='';clearSearchBtn.style.display='none';applyFilters();});
+}
+
+/* ===== Mode toggle ===== */
+function buildVehicleChips(){
+  const row=document.getElementById('vehicleRow');
+  row.innerHTML='<div class="vchip active" data-v="all" style="background:#0E2A3E;">Semua</div>'+RENCANA.vehicles.map(v=>'<div class="vchip" data-v="'+v.id+'" style="background:'+(v.hex||'#555')+';">'+escapeHtml(v.name)+'</div>').join('');
+  row.querySelectorAll('.vchip').forEach(chip=>chip.addEventListener('click',()=>{
+    currentVehicle=chip.dataset.v;
+    row.querySelectorAll('.vchip').forEach(c=>c.classList.toggle('active',c===chip));
+    applyFilters();
+  }));
+}
+function setupModeAndVehicles(){
+  document.getElementById('modeAll').addEventListener('click',()=>setMode('all'));
+  document.getElementById('modePlan').addEventListener('click',()=>setMode('plan'));
+}
+function setMode(mode){
+  if(mode==='plan'&&(!RENCANA||!RENCANA.vehicles||!RENCANA.vehicles.length)){showToast('Rencana belum tersedia.');return;}
+  currentMode=mode;currentVehicle='all';
+  document.getElementById('modeAll').classList.toggle('active',mode==='all');
+  document.getElementById('modePlan').classList.toggle('active',mode==='plan');
+  document.getElementById('filterRow').style.display=mode==='all'?'flex':'none';
+  document.getElementById('vehicleRow').classList.toggle('show',mode==='plan');
+  document.querySelectorAll('.vchip').forEach(c=>c.classList.toggle('active',c.dataset.v==='all'));
+  applyFilters();
+}
+
+/* ===== Apply Filters ===== */
+function applyFilters(){
+  clusterGroup.clearLayers();
+  if(currentMode==='plan'&&RENCANA){
+    let stopsAll=[];
+    RENCANA.vehicles.forEach(v=>{
+      if(currentVehicle!=='all'&&v.id!==currentVehicle)return;
+      (v.stops||[]).forEach(s=>stopsAll.push({cc:s.cc,invoice:s.invoice,invoiceNo:s.invoiceNo,invoiceDate:s.invoiceDate,vehicleId:v.id,vehicleHex:v.hex}));
+    });
+    // Group by outlet so an outlet with several invoices gets ONE marker/popup
+    // listing all of them, instead of each invoice silently overwriting the last.
+    const groups={};
+    stopsAll.forEach(s=>{(groups[s.cc]=groups[s.cc]||[]).push(s);});
+    const q=(searchInput.value||'').trim().toLowerCase();
+    const filteredCcs=Object.keys(groups).filter(cc=>{
+      const o=outletByCc[cc];if(!o)return false;
+      return!q||(o.n||'').toLowerCase().includes(q)||(o.a||'').toLowerCase().includes(q);
+    });
+    currentFiltered=filteredCcs.flatMap(cc=>{
+      const o=outletByCc[cc];
+      return groups[cc].map(s=>Object.assign({},o,{_vehicleId:s.vehicleId,_invoice:s.invoice,_invoiceNo:s.invoiceNo,_invoiceDate:s.invoiceDate,_vehicleHex:s.vehicleHex}));
+    });
+    window._outletStopsRegistry={};
+    filteredCcs.forEach(cc=>{
+      const o=outletByCc[cc];const stops=groups[cc];
+      window._outletStopsRegistry[cc]=stops;
+      const m=markers[o.id];
+      const deliveredCount=stops.filter(s=>DELIVERIES[deliveryKey(cc,s.invoiceNo)]).length;
+      let icon;
+      if(deliveredCount===0)icon=outletIcon(stops[0].vehicleHex);
+      else if(deliveredCount<stops.length)icon=partialIcon();
+      else icon=deliveredIcon();
+      m.setIcon(icon);m.setPopupContent(popupHtmlGrouped(o,stops));clusterGroup.addLayer(m);
+    });
+    document.getElementById('countBadge').textContent=currentFiltered.length+' invoice · '+filteredCcs.length+' outlet';
+  }else{
+    const q=searchInput.value.trim().toLowerCase();const town=townSel.value,sales=salesSel.value,day=daySel.value;
+    currentFiltered=OUTLETS.filter(o=>{
+      if(town&&o.t!==town)return false;if(sales&&o.s!==sales)return false;if(day&&o.p!==day)return false;
+      if(q&&!(o.n||'').toLowerCase().includes(q)&&!(o.a||'').toLowerCase().includes(q)&&!(o.t||'').toLowerCase().includes(q))return false;return true;
+    });
+    currentFiltered.forEach(o=>{const m=markers[o.id];m.setIcon(outletIcon());m.setPopupContent(popupHtml(o));clusterGroup.addLayer(m);});
+    document.getElementById('countBadge').textContent=currentFiltered.length+' outlet';
+  }
+  renderList();updateRouteFab();
+}
+
+/* ===== List ===== */
+function renderList(){
+  const sheetList=document.getElementById('sheetList'),emptyState=document.getElementById('emptyState');
+  const sheetLabel=document.getElementById('sheetLabel'),sheetSub=document.getElementById('sheetSub');
+  let list=currentFiltered.slice();
+  if(userLatLng){list.forEach(o=>o._dist=haversine(userLatLng.lat,userLatLng.lng,o.lat,o.lon));list.sort((a,b)=>a._dist-b._dist);sheetSub.textContent='Diurutkan berdasarkan jarak terdekat';}
+  else sheetSub.textContent='Aktifkan GPS untuk urutkan berdasarkan jarak';
+  sheetLabel.textContent=list.length+' outlet';
+  if(!list.length){sheetList.innerHTML='';emptyState.style.display='block';return;}
+  emptyState.style.display='none';
+  const frag=document.createDocumentFragment();
+  list.slice(0,300).forEach((o,idx)=>{
+    const row=document.createElement('div');row.className='outlet-row';
+    const distTxt=o._dist!=null?(o._dist<1?Math.round(o._dist*1000)+' m':o._dist.toFixed(1)+' km'):'';
+    const delivered=o._vehicleId&&isDelivered(o.cc,o._invoiceNo);
+    const metaExtra=o._vehicleId?(' · '+(delivered?'✅ ':'')+(o._invoiceNo||'')):'';
+    row.innerHTML='<div class="outlet-idx" style="'+(delivered?'background:#C8E6C9':'')+'">'+
+      (idx+1)+'</div><div class="outlet-info"><div class="outlet-name">'+escapeHtml(o.n)+'</div><div class="outlet-meta">'+escapeHtml(o.t)+metaExtra+'</div></div>'+(distTxt?'<div class="outlet-dist">'+distTxt+'</div>':'')+'<a class="outlet-go" href="'+gmapsUrl(o.lat,o.lon)+'" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l9 20-9-6-9 6 9-20z" fill="#fff"/></svg></a>';
+    row.addEventListener('click',e=>{if(e.target.closest('.outlet-go'))return;map.flyTo([o.lat,o.lon],16,{duration:0.6});setTimeout(()=>markers[o.id].openPopup(),650);closeSheet();});
+    frag.appendChild(row);
+  });
+  sheetList.innerHTML='';sheetList.appendChild(frag);
+}
+
+/* ===== Sheet ===== */
+let sheetOpen=false;
+function setupSheet(){
+  const handle=document.getElementById('sheetHandle'),chevron=document.getElementById('sheetChevron');
+  handle.addEventListener('click',()=>sheetOpen?closeSheet():openSheet());
+  let dragStartY=null;
+  handle.addEventListener('touchstart',e=>{dragStartY=e.touches[0].clientY;},{passive:true});
+  handle.addEventListener('touchmove',e=>{if(dragStartY===null)return;const dy=e.touches[0].clientY-dragStartY;if(dy<-40){openSheet();dragStartY=null;}else if(dy>40){closeSheet();dragStartY=null;}},{passive:true});
+  handle.addEventListener('touchend',()=>{dragStartY=null;});
+}
+function openSheet(){document.getElementById('sheet').classList.add('open');sheetOpen=true;document.getElementById('sheetChevron').style.transform='rotate(180deg)';}
+function closeSheet(){document.getElementById('sheet').classList.remove('open');sheetOpen=false;document.getElementById('sheetChevron').style.transform='rotate(0deg)';}
+
+/* ===== GPS ===== */
+function ensureLiveMarker(ll){const icon=L.divIcon({className:'',html:'<div class="live-marker"><div class="pulse"></div><div class="core"></div></div>',iconSize:[22,22],iconAnchor:[11,11]});if(!liveMarker)liveMarker=L.marker(ll,{icon,zIndexOffset:1000}).addTo(map);else liveMarker.setLatLng(ll);}
+function setupGPS(){
+  const gpsStatus=document.getElementById('gpsStatus'),gpsText=document.getElementById('gpsText'),locateBtn=document.getElementById('locateBtn');
+  locateBtn.classList.add('following');
+  if(!('geolocation' in navigator)){gpsStatus.className='';gpsText.textContent='GPS tidak didukung';return;}
+  gpsStatus.className='wait';gpsText.textContent='Mencari GPS…';
+  navigator.geolocation.watchPosition(pos=>{
+    const{latitude,longitude,accuracy}=pos.coords;userLatLng={lat:latitude,lng:longitude};
+    ensureLiveMarker([latitude,longitude]);gpsStatus.className='ok';gpsText.textContent='Live · '+Math.round(accuracy)+'m';
+    if(following||firstFix)map.setView([latitude,longitude],firstFix?14:map.getZoom(),{animate:true});
+    if(firstFix)firstFix=false;renderList();
+  },err=>{gpsStatus.className='';gpsText.textContent=err.code===1?'Izin lokasi ditolak':'GPS tidak tersedia';if(err.code===1)showToast('Izinkan akses lokasi.');},{enableHighAccuracy:true,maximumAge:2000,timeout:15000});
+  locateBtn.addEventListener('click',()=>{following=!following;locateBtn.classList.toggle('following',following);if(following&&userLatLng)map.setView([userLatLng.lat,userLatLng.lng],Math.max(map.getZoom(),15),{animate:true});});
+  map.on('dragstart',()=>{if(following){following=false;locateBtn.classList.remove('following');}});
+}
+
+/* ===== Route FAB ===== */
+let routeChunks=[],routeChunkIndex=0;
+function nearestNeighborOrder(pts){if(pts.length<=1)return pts.slice();const rem=pts.slice();const ord=[rem.shift()];while(rem.length){const last=ord[ord.length-1];let bi=0,bd=Infinity;rem.forEach((p,i)=>{const d=haversine(last.lat,last.lon,p.lat,p.lon);if(d<bd){bd=d;bi=i;}});ord.push(rem.splice(bi,1)[0]);}return ord;}
+function computeRouteChunks(vehicleId){
+  if(!RENCANA)return[];const v=RENCANA.vehicles.find(v=>v.id===vehicleId);if(!v)return[];
+  const resolved=v.stops.map(s=>outletByCc[s.cc]).filter(Boolean);const ordered=nearestNeighborOrder(resolved);
+  const chunks=[];for(let i=0;i<ordered.length;i+=10)chunks.push(ordered.slice(i,i+10));
+  return chunks.map(chunk=>{const dest=chunk[chunk.length-1];const wp=chunk.slice(0,-1).map(o=>o.lat+','+o.lon).join('|');let url='https://www.google.com/maps/dir/?api=1&destination='+dest.lat+','+dest.lon+'&travelmode=driving';if(wp)url+='&waypoints='+encodeURIComponent(wp);return url;});
+}
+function setupRouteFab(){document.getElementById('routeFab').addEventListener('click',()=>{if(!routeChunks.length)return;window.open(routeChunks[routeChunkIndex],'_blank');routeChunkIndex=(routeChunkIndex+1)%routeChunks.length;updateRouteFabLabel();});}
+function updateRouteFab(){
+  const fab=document.getElementById('routeFab');
+  if(currentMode==='plan'&&currentVehicle!=='all'&&RENCANA){routeChunks=computeRouteChunks(currentVehicle);routeChunkIndex=0;if(routeChunks.length){fab.classList.add('show');updateRouteFabLabel();}else fab.classList.remove('show');}
+  else{fab.classList.remove('show');routeChunks=[];}
+}
+function updateRouteFabLabel(){const l=document.getElementById('routeFabText');if(routeChunks.length<=1)l.textContent='Buka Rute di Google Maps';else l.textContent='Rute Bagian '+(routeChunkIndex+1)+'/'+routeChunks.length;}
+
+/* ===== Toast ===== */
+let toastTimer;function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3600);}
+
+/* ===== Menu: Dashboard / Admin ===== */
+// SHA-256 hash of the admin password — the plain password itself is never stored here.
+// This is a soft UX gate, not real security: anyone with access to this file's code
+// could brute-force it offline. Real protection is the GitHub token, which is never
+// embedded and must be typed manually into admin.html each session.
+const ADMIN_PW_HASH='0e86e8f45f7f50d4038d9cf73e526ad31c6ffde75a188bc68aa1cb48a7b0271c';
+async function sha256Hex(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function currentHash(){return location.hash||'';}
+
+const menuBtn=document.getElementById('menuBtn'),menuDropdown=document.getElementById('menuDropdown');
+menuBtn.addEventListener('click',e=>{e.stopPropagation();menuDropdown.classList.toggle('show');});
+document.addEventListener('click',()=>menuDropdown.classList.remove('show'));
+
+document.getElementById('gotoDashboard').addEventListener('click',()=>{
+  window.location.href='./dashboard.html'+currentHash();
+});
+
+const pwModal=document.getElementById('pwModal'),pwInput=document.getElementById('pwInput'),pwErr=document.getElementById('pwErr');
+document.getElementById('gotoAdmin').addEventListener('click',()=>{
+  menuDropdown.classList.remove('show');
+  pwInput.value='';pwErr.textContent='';
+  pwModal.classList.add('show');
+  setTimeout(()=>pwInput.focus(),100);
+});
+document.getElementById('pwCancel').addEventListener('click',()=>pwModal.classList.remove('show'));
+pwModal.addEventListener('click',e=>{if(e.target===pwModal)pwModal.classList.remove('show');});
+async function submitPw(){
+  const val=pwInput.value;
+  if(!val){pwErr.textContent='Password tidak boleh kosong.';return;}
+  const hash=await sha256Hex(val);
+  if(hash===ADMIN_PW_HASH){
+    window.location.href='./admin.html'+currentHash();
+  }else{
+    pwErr.textContent='Password salah. Coba lagi.';
+    pwInput.value='';pwInput.focus();
+  }
+}
+document.getElementById('pwSubmit').addEventListener('click',submitPw);
+pwInput.addEventListener('keydown',e=>{if(e.key==='Enter')submitPw();});
+
+boot();
+</script>
+</body>
+</html>

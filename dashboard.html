@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Monitor Pengantaran</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="./firebase-config.js"></script>
+<style>
+:root{--ink:#0E2A3E;--ink-2:#173B54;--surface:#F5F6F3;--surface-2:#FFFFFF;--line:#DEE3DF;--muted:#5E6E71;--go:#1F8A4C;--go-dark:#186B3B;--live:#FF8A1E;--danger:#C64B3C;--radius:14px;--font-display:'Space Grotesk',system-ui,sans-serif;--font-body:'Inter',system-ui,-apple-system,sans-serif;}
+*{box-sizing:border-box;}body{margin:0;font-family:var(--font-body);background:var(--surface);color:var(--ink);}
+.wrap{max-width:900px;margin:0 auto;padding:20px 16px 80px;}
+header h1{font-family:var(--font-display);font-size:20px;margin:0 0 4px;}header p{margin:0;color:var(--muted);font-size:13px;}
+.card{background:var(--surface-2);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(14,42,62,0.08);}
+.card h2{font-family:var(--font-display);font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px;}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px;}
+.stat{background:var(--surface);border-radius:12px;padding:14px;text-align:center;}
+.stat .num{font-family:var(--font-display);font-weight:700;font-size:28px;}.stat .lbl{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;}
+.stat.green .num{color:var(--go);}.stat.orange .num{color:var(--live);}.stat.blue .num{color:var(--ink-2);}
+.prog-bar{height:10px;border-radius:5px;background:var(--surface);overflow:hidden;margin:8px 0;}
+.prog-fill{height:100%;border-radius:5px;background:var(--go);transition:width .4s;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{text-align:left;color:var(--muted);font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1.5px solid var(--line);position:sticky;top:0;background:var(--surface-2);}
+td{padding:8px;border-bottom:1px solid var(--surface);vertical-align:middle;}
+td.num{text-align:right;font-variant-numeric:tabular-nums;}
+.tag{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;}
+.tag-done{background:#EAF7EE;color:var(--go-dark);}.tag-pending{background:#FDF3E7;color:#8A5A16;}
+.tag-veh{color:#fff;font-size:9px;padding:2px 6px;}
+.filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.filter-row select{appearance:none;-webkit-appearance:none;border:1.5px solid var(--line);border-radius:9px;padding:8px 28px 8px 10px;font-size:13px;font-family:var(--font-body);background:var(--surface-2) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%235E6E71'/></svg>") no-repeat right 10px center;outline:none;}
+.btn{border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:var(--font-body);}
+.btn-outline{background:var(--surface);color:var(--ink-2);border:1.5px solid var(--line);}
+.empty{color:var(--muted);text-align:center;padding:30px;font-size:13px;}
+.hint{font-size:11.5px;color:var(--muted);line-height:1.5;}
+.refresh-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.refresh-row .ts{font-size:11px;color:var(--muted);}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:999;transition:transform .25s;box-shadow:0 4px 16px rgba(0,0,0,0.3);}
+#toast.show{transform:translateX(-50%) translateY(0);}
+.refresh-row button{position:relative;transition:all .15s;}
+.refresh-row button:disabled{opacity:0.7;cursor:wait;}
+.ts.fresh{color:var(--go-dark);font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>📊 Dashboard Monitor Pengantaran</h1><p>Status pengiriman real-time berdasarkan rencana & laporan driver.</p></header>
+
+<div class="card">
+<div class="refresh-row">
+<button class="btn btn-outline" id="refreshBtn">🔄 Refresh Data</button>
+<span class="ts" id="lastRefresh"></span>
+</div>
+<div class="stats" id="statsArea"><div class="empty">Memuat data…</div></div>
+<div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+<div class="hint" id="progHint" style="text-align:center;"></div>
+</div>
+
+<div class="card">
+<h2>Per Kendaraan</h2>
+<div id="perVehicle"></div>
+</div>
+
+<div class="card">
+<h2>Detail Invoice</h2>
+<div class="filter-row">
+<select id="fStatus"><option value="">Semua Status</option><option value="done">Terkirim</option><option value="pending">Belum</option></select>
+<select id="fVehicle"><option value="">Semua Kendaraan</option></select>
+</div>
+<div style="overflow-x:auto;max-height:500px;overflow-y:auto;">
+<table><thead><tr><th>Outlet</th><th>No Invoice</th><th>Tgl Invoice</th><th class="num">Nilai</th><th class="num">Nilai Terkonfirmasi</th><th>Kendaraan</th><th>Status</th><th>Waktu Kirim</th><th>Lokasi Aktual</th><th>Selisih Jarak</th></tr></thead>
+<tbody id="detailBody"></tbody></table>
+</div>
+<div class="empty" id="detailEmpty" style="display:none;">Tidak ada data.</div>
+</div>
+
+<div class="card">
+<button class="btn btn-outline" id="exportCsvBtn">⬇ Unduh Rekap CSV</button>
+<button class="btn btn-go" id="exportXlsxBtn" style="margin-top:10px;">📊 Unduh Semua Data (Excel, Multi-Sheet)</button>
+<div class="hint" style="margin-top:8px;">File Excel berisi 4 sheet terpisah: Rencana Pengantaran, Status Pengiriman, Detail SKU, dan Verifikasi Muat Barang — siap diolah lebih lanjut.</div>
+</div>
+</div>
+<div id="toast"></div>
+
+<script>
+let RENCANA=null,DELIVERIES={},OUTLETS=[],outletByCc={},SKU_DETAIL={items:{}},MUAT_CHECK={checks:{}};
+let ghCreds=null;
+
+function parseHash(){const h=location.hash.slice(1);if(!h)return;const p=new URLSearchParams(h);const t=p.get('t'),o=p.get('o'),r=p.get('r');if(t&&o&&r)ghCreds={token:t,owner:o,repo:r};}
+parseHash();
+
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmtRp(n){return'Rp '+Number(n).toLocaleString('id-ID');}
+function deliveryKey(cc,invNo){return sanitizeDocId(cc+'|'+(invNo||''));}
+function haversine(lat1,lon1,lat2,lon2){const R=6371,toRad=d=>d*Math.PI/180,dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1),a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+function fmtDist(km){if(km<1)return Math.round(km*1000)+' m';return km.toFixed(2)+' km';}
+
+async function loadData(){
+  const btn=document.getElementById('refreshBtn');
+  const tsEl=document.getElementById('lastRefresh');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Memuat…';}
+  tsEl.classList.remove('fresh');
+  try{
+    if(!FIREBASE_CONFIGURED){throw new Error('Firebase belum dikonfigurasi (edit firebase-config.js).');}
+    const connected=await firebaseReady;
+    if(!connected)throw new Error('Gagal terhubung ke Firebase.');
+
+    try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});}catch(e){}
+
+    try{
+      const doc=await db.collection('rencana').doc('current').get();
+      if(doc.exists)RENCANA=doc.data();
+    }catch(e){console.error('Gagal memuat rencana:',e);}
+
+    try{
+      DELIVERIES={};
+      const snap=await db.collection('deliveries').get();
+      snap.forEach(doc=>{DELIVERIES[doc.id]=doc.data();});
+    }catch(e){console.error('Gagal memuat deliveries:',e);}
+
+    try{
+      SKU_DETAIL={items:{}};
+      const snap=await db.collection('skuDetail').get();
+      snap.forEach(doc=>{SKU_DETAIL.items[doc.id]=(doc.data().items)||[];});
+    }catch(e){console.error('Gagal memuat sku_detail:',e);}
+
+    try{
+      MUAT_CHECK={checks:{}};
+      const snap=await db.collection('muatChecks').get();
+      snap.forEach(doc=>{MUAT_CHECK.checks[doc.id]=doc.data();});
+    }catch(e){console.error('Gagal memuat muat_check:',e);}
+
+    tsEl.textContent='Terakhir: '+new Date().toLocaleString('id-ID');
+    tsEl.classList.add('fresh');
+    render();
+    if(btn){btn.textContent='✅ Diperbarui';showToast('Data berhasil diperbarui.');}
+  }catch(err){
+    if(btn){btn.textContent='⚠️ Gagal, coba lagi';}
+    showToast('Gagal memuat data: '+err.message);
+  }finally{
+    if(btn){
+      btn.disabled=false;
+      setTimeout(()=>{btn.textContent='🔄 Refresh Data';},1800);
+    }
+  }
+}
+let toastTimerDash;
+function showToast(msg){
+  const t=document.getElementById('toast');if(!t)return;
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimerDash);toastTimerDash=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+function render(){
+  if(!RENCANA||!RENCANA.vehicles){document.getElementById('statsArea').innerHTML='<div class="empty">Rencana belum tersedia. Publikasikan dari admin.html.</div>';return;}
+  const allStops=[];
+  RENCANA.vehicles.forEach(v=>(v.stops||[]).forEach(s=>allStops.push({...s,vehicleId:v.id,vehicleName:v.name,vehicleHex:v.hex||'#555'})));
+  const totalStops=allStops.length;
+  const delivered=allStops.filter(s=>DELIVERIES[deliveryKey(s.cc,s.invoiceNo)]);
+  const pending=totalStops-delivered.length;
+  const totalValue=allStops.reduce((s,x)=>s+x.invoice,0);
+  const deliveredValue=delivered.reduce((s,x)=>s+x.invoice,0);
+  const pct=totalStops?Math.round(delivered.length/totalStops*100):0;
+  const distances=delivered.map(s=>{
+    const outlet=outletByCc[s.cc];const del=DELIVERIES[deliveryKey(s.cc,s.invoiceNo)];
+    return(outlet&&del)?haversine(del.lat,del.lon,outlet.lat,outlet.lon):null;
+  }).filter(d=>d!=null);
+  const anomali=distances.filter(d=>d>1).length;
+  const avgDist=distances.length?(distances.reduce((a,b)=>a+b,0)/distances.length):0;
+
+  document.getElementById('statsArea').innerHTML=
+    '<div class="stat blue"><div class="num">'+totalStops+'</div><div class="lbl">Total Invoice</div></div>'+
+    '<div class="stat green"><div class="num">'+delivered.length+'</div><div class="lbl">Terkirim</div></div>'+
+    '<div class="stat orange"><div class="num">'+pending+'</div><div class="lbl">Belum Terkirim</div></div>'+
+    '<div class="stat"><div class="num">'+pct+'%</div><div class="lbl">Progress</div></div>'+
+    '<div class="stat'+(anomali>0?' orange':'')+'"><div class="num">'+(distances.length?fmtDist(avgDist):'-')+'</div><div class="lbl">Rata² Selisih Jarak</div></div>'+
+    (anomali>0?'<div class="stat orange"><div class="num">'+anomali+'</div><div class="lbl">Selisih &gt;1 km</div></div>':'');
+  document.getElementById('progFill').style.width=pct+'%';
+  document.getElementById('progHint').textContent='Terkirim: '+fmtRp(deliveredValue)+' dari '+fmtRp(totalValue)+' · Rencana: '+RENCANA.tanggal_rencana;
+
+  // Per vehicle
+  const pvHtml=RENCANA.vehicles.map(v=>{
+    const stops=v.stops||[];const done=stops.filter(s=>DELIVERIES[deliveryKey(s.cc,s.invoiceNo)]).length;
+    const vpct=stops.length?Math.round(done/stops.length*100):0;
+    return'<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:700;font-size:13px;">'+escapeHtml(v.name)+'</span><span style="font-size:12px;color:var(--muted);">'+done+'/'+stops.length+' ('+vpct+'%)</span></div><div class="prog-bar"><div class="prog-fill" style="width:'+vpct+'%;background:'+(v.hex||'var(--go)')+'"></div></div></div>';
+  }).join('');
+  document.getElementById('perVehicle').innerHTML=pvHtml;
+
+  // Vehicle filter
+  const fVehicle=document.getElementById('fVehicle');
+  const prevVal=fVehicle.value;
+  fVehicle.innerHTML='<option value="">Semua Kendaraan</option>'+RENCANA.vehicles.map(v=>'<option value="'+v.id+'">'+escapeHtml(v.name)+'</option>').join('');
+  fVehicle.value=prevVal;
+
+  renderDetail(allStops);
+}
+
+function renderDetail(allStops){
+  const fStatus=document.getElementById('fStatus').value;
+  const fVehicle=document.getElementById('fVehicle').value;
+  let filtered=allStops;
+  if(fVehicle)filtered=filtered.filter(s=>s.vehicleId===fVehicle);
+  if(fStatus==='done')filtered=filtered.filter(s=>DELIVERIES[deliveryKey(s.cc,s.invoiceNo)]);
+  if(fStatus==='pending')filtered=filtered.filter(s=>!DELIVERIES[deliveryKey(s.cc,s.invoiceNo)]);
+
+  document.getElementById('detailEmpty').style.display=filtered.length?'none':'block';
+  const body=document.getElementById('detailBody');
+  body.innerHTML=filtered.map(s=>{
+    const outlet=outletByCc[s.cc];const name=outlet?outlet.n:s.cc;
+    const dk=deliveryKey(s.cc,s.invoiceNo);const del=DELIVERIES[dk];
+    const statusTag=del?'<span class="tag tag-done">Terkirim</span>':'<span class="tag tag-pending">Belum</span>';
+    const timeStr=del?new Date(del.delivered_at).toLocaleString('id-ID'):'-';
+    const locStr=del?'<a href="https://www.google.com/maps?q='+del.lat+','+del.lon+'" target="_blank" style="color:var(--ink-2);font-size:11px;">📍 Lihat</a>':'-';
+    let distStr='-';
+    if(del&&outlet){
+      const distKm=haversine(del.lat,del.lon,outlet.lat,outlet.lon);
+      const distColor=distKm>1?'var(--danger)':(distKm>0.3?'#B8860B':'var(--go-dark)');
+      distStr='<span style="color:'+distColor+';font-weight:700;font-size:11px;">'+fmtDist(distKm)+'</span>';
+    }
+    let confirmedStr='-';
+    if(del&&del.confirmed_value!=null){
+      const hasReject=del.rejected_value>0;
+      const items=(del.rejected_items||[]).map(r=>escapeHtml(r.name)+' x'+r.qty_rejected+' (-'+fmtRp(r.subtotal)+')').join(', ');
+      confirmedStr=hasReject
+        ?'<span style="color:var(--danger);font-weight:700;" title="'+items.replace(/"/g,'&quot;')+'">'+fmtRp(del.confirmed_value)+' 🔻</span>'
+        :fmtRp(del.confirmed_value);
+    }
+    return'<tr><td>'+escapeHtml(name)+'<div style="color:var(--muted);font-size:10px;">'+s.cc+'</div></td><td>'+escapeHtml(s.invoiceNo||'-')+'</td><td style="font-size:11px;">'+escapeHtml(s.invoiceDate||'-')+'</td><td class="num">'+fmtRp(s.invoice)+'</td><td class="num">'+confirmedStr+'</td><td><span class="tag tag-veh" style="background:'+(s.vehicleHex||'#555')+'">'+escapeHtml(s.vehicleName)+'</span></td><td>'+statusTag+'</td><td style="font-size:11px;">'+timeStr+'</td><td>'+locStr+'</td><td>'+distStr+'</td></tr>';
+  }).join('');
+}
+
+document.getElementById('fStatus').addEventListener('change',()=>{if(RENCANA)render();});
+document.getElementById('fVehicle').addEventListener('change',()=>{if(RENCANA)render();});
+document.getElementById('refreshBtn').addEventListener('click',loadData);
+
+// Export CSV
+document.getElementById('exportCsvBtn').addEventListener('click',()=>{
+  if(!RENCANA)return;
+  let csv='Kode Outlet,Nama Outlet,No Invoice,Tanggal Invoice,Nilai Invoice,Nilai Terkonfirmasi,Nilai Ditolak,Item Ditolak,Kendaraan,Status,Waktu Kirim,Lat Master,Lon Master,Lat Aktual,Lon Aktual,Selisih Jarak (m)\n';
+  RENCANA.vehicles.forEach(v=>(v.stops||[]).forEach(s=>{
+    const outlet=outletByCc[s.cc];const name=outlet?outlet.n:s.cc;
+    const dk=deliveryKey(s.cc,s.invoiceNo);const del=DELIVERIES[dk];
+    const distM=(del&&outlet)?Math.round(haversine(del.lat,del.lon,outlet.lat,outlet.lon)*1000):'';
+    const confirmedVal=(del&&del.confirmed_value!=null)?del.confirmed_value:'';
+    const rejectedVal=(del&&del.rejected_value)?del.rejected_value:'';
+    const rejectedItemsStr=(del&&del.rejected_items&&del.rejected_items.length)?del.rejected_items.map(r=>r.name+' x'+r.qty_rejected).join('; '):'';
+    csv+=[s.cc,'"'+name.replace(/"/g,'""')+'"',s.invoiceNo||'',s.invoiceDate||'',s.invoice,confirmedVal,rejectedVal,'"'+rejectedItemsStr.replace(/"/g,'""')+'"',v.name,del?'Terkirim':'Belum',del?del.delivered_at:'',outlet?outlet.lat:'',outlet?outlet.lon:'',del?del.lat:'',del?del.lon:'',distM].join(',')+'\n';
+  }));
+  const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='rekap_pengantaran_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+});
+
+// Export multi-sheet Excel (full data dump for further processing)
+document.getElementById('exportXlsxBtn').addEventListener('click',()=>{
+  if(!RENCANA||!RENCANA.vehicles||!RENCANA.vehicles.length){showToast('Belum ada rencana pengantaran untuk diexport.');return;}
+
+  const wb=XLSX.utils.book_new();
+
+  // Sheet 1: Rencana Pengantaran + Status Pengiriman (gabungan, paling sering dipakai)
+  const sheet1=[];
+  RENCANA.vehicles.forEach(v=>(v.stops||[]).forEach(s=>{
+    const outlet=outletByCc[s.cc];
+    const dk=deliveryKey(s.cc,s.invoiceNo);const del=DELIVERIES[dk];
+    const distKm=(del&&outlet)?haversine(del.lat,del.lon,outlet.lat,outlet.lon):null;
+    sheet1.push({
+      'Kode Outlet':s.cc,
+      'Nama Outlet':outlet?outlet.n:'',
+      'Alamat':outlet?outlet.a:'',
+      'Wilayah':outlet?outlet.t:'',
+      'Salesman':outlet?outlet.s:'',
+      'No Invoice':s.invoiceNo||'',
+      'Tanggal Invoice':s.invoiceDate||'',
+      'Nilai Invoice':s.invoice,
+      'Estimasi Karton':s.karton||'',
+      'Kendaraan':v.name,
+      'Status':del?'Terkirim':'Belum Terkirim',
+      'Waktu Terkirim':del?del.delivered_at:'',
+      'Nilai Terkonfirmasi':(del&&del.confirmed_value!=null)?del.confirmed_value:'',
+      'Nilai Ditolak':(del&&del.rejected_value)?del.rejected_value:'',
+      'Item Ditolak':(del&&del.rejected_items&&del.rejected_items.length)?del.rejected_items.map(r=>r.name+' x'+r.qty_rejected+' (Rp '+r.subtotal.toLocaleString('id-ID')+')').join('; '):'',
+      'Lat Master':outlet?outlet.lat:'',
+      'Lon Master':outlet?outlet.lon:'',
+      'Lat Aktual':del?del.lat:'',
+      'Lon Aktual':del?del.lon:'',
+      'Selisih Jarak (m)':distKm!=null?Math.round(distKm*1000):''
+    });
+  }));
+  const ws1=XLSX.utils.json_to_sheet(sheet1);
+  XLSX.utils.book_append_sheet(wb,ws1,'Rencana & Status Kirim');
+
+  // Sheet 2: Detail SKU per Invoice
+  const sheet2=[];
+  Object.entries(SKU_DETAIL.items||{}).forEach(([invNo,lines])=>{
+    lines.forEach(line=>{
+      sheet2.push({'No Invoice':invNo,'Kode SKU':line.sku,'Nama SKU':line.name,'Qty Invoice':line.qty,'Harga Satuan':line.harga||''});
+    });
+  });
+  if(sheet2.length){
+    const ws2=XLSX.utils.json_to_sheet(sheet2);
+    XLSX.utils.book_append_sheet(wb,ws2,'Detail SKU');
+  }
+
+  // Sheet 3: Verifikasi Muat Barang
+  const sheet3=[];
+  Object.entries(SKU_DETAIL.items||{}).forEach(([invNo,lines])=>{
+    lines.forEach(line=>{
+      const ck=(MUAT_CHECK.checks||{})[invNo+'|'+line.sku];
+      sheet3.push({
+        'No Invoice':invNo,
+        'Kode SKU':line.sku,
+        'Nama SKU':line.name,
+        'Qty Invoice':line.qty,
+        'Qty Dimuat':ck?ck.qty_loaded:'',
+        'Status':ck?(Number(ck.qty_loaded)===Number(line.qty)?'Sesuai':'Tidak Sesuai'):'Belum Dicek',
+        'Waktu Dicek':ck?ck.checked_at:''
+      });
+    });
+  });
+  if(sheet3.length){
+    const ws3=XLSX.utils.json_to_sheet(sheet3);
+    XLSX.utils.book_append_sheet(wb,ws3,'Verifikasi Muat');
+  }
+
+  // Sheet 4: Rekap per Kendaraan
+  const sheet4=RENCANA.vehicles.map(v=>{
+    const stops=v.stops||[];
+    const delivered=stops.filter(s=>DELIVERIES[deliveryKey(s.cc,s.invoiceNo)]);
+    return{
+      'Kendaraan':v.name,
+      'Kapasitas Karton':v.capacity||'',
+      'Karton Termuat':v.kartonUsed||'',
+      'Jumlah Invoice':stops.length,
+      'Total Nilai':v.total,
+      'Invoice Terkirim':delivered.length,
+      'Invoice Belum Terkirim':stops.length-delivered.length
+    };
+  });
+  const ws4=XLSX.utils.json_to_sheet(sheet4);
+  XLSX.utils.book_append_sheet(wb,ws4,'Rekap per Kendaraan');
+
+  XLSX.writeFile(wb,'rekap_lengkap_swikie_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  showToast('File Excel berhasil diunduh.');
+});
+
+loadData();
+</script>
+</body>
+</html>
