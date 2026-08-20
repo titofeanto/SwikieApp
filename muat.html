@@ -65,7 +65,7 @@ input:focus{border-color:var(--ink-2);}
 .sku-row.flash{animation:flashgreen .6s ease;}
 @keyframes flashgreen{0%{background:#BEF0CC;}100%{background:transparent;}}
 .sku-row .sname{flex:1;min-width:0;}.sku-row .sname .code{color:var(--muted);font-size:10.5px;display:block;}
-.sku-row .sexpected{flex:none;font-size:11px;color:var(--muted);width:58px;text-align:center;}
+.sku-row .sexpected{flex:none;font-size:10.5px;color:var(--muted);width:78px;text-align:center;line-height:1.3;}
 .sku-row input{width:58px;flex:none;text-align:center;padding:6px 4px;font-size:13px;}
 .sku-row input.match{border-color:var(--go);background:#F1F8F3;}
 .sku-row input.mismatch{border-color:var(--danger);background:#FEF1F0;}
@@ -97,7 +97,7 @@ input:focus{border-color:var(--ink-2);}
 
 <div class="card">
 <h2>📤 Upload Detail SKU per Invoice <span class="badge" id="countSkuLines">0 baris</span></h2>
-<div class="hint" style="margin-top:0;">Kolom: <b>No Invoice</b>, <b>Kode SKU / Barcode</b>, <b>Nama SKU</b>, <b>Qty</b>, <b>Harga Satuan</b> (opsional, untuk kalkulator selisih di sesi pengantaran). Kolom Kode SKU sebaiknya diisi dengan <b>nomor barcode barang/karton</b> supaya bisa dipindai.</div>
+<div class="hint" style="margin-top:0;">Kolom: <b>No Invoice</b>, <b>Kode SKU</b>, <b>Nama SKU</b>, <b>Qty</b>, <b>Harga Satuan</b> (opsional, untuk kalkulator selisih di sesi pengantaran). Kolom Kode SKU boleh diisi <b>Kode SKU asli</b> ATAU langsung nomor barcode — sistem otomatis menerjemahkan barcode produk (PC) maupun barcode karton (CS/outer) yang dipindai ke Kode SKU yang benar lewat referensi Product Hierarchy, jadi tidak masalah barcode mana yang tertempel di kardus.</div>
 <button class="btn btn-outline btn-sm" id="downloadTemplateBtn" style="margin:8px 0;">⬇ Unduh Template Excel</button>
 <div class="upload-zone" id="uploadZone"><input type="file" id="fileInput" accept=".xlsx,.xls"><div class="icon">📤</div><div class="main">Klik atau tarik file Excel ke sini</div><div class="sub">Duplikat No Invoice + Kode SKU akan ditimpa</div></div>
 <div id="uploadSummary"></div>
@@ -128,7 +128,7 @@ input:focus{border-color:var(--ink-2);}
 
 <script>
 /* ===== State ===== */
-let OUTLETS=[],RENCANA=null,SKU_DETAIL={items:{}},MUAT_CHECK={checks:{}};
+let OUTLETS=[],RENCANA=null,SKU_DETAIL={items:{}},MUAT_CHECK={checks:{}},SKU_MASTER={skuInfo:{},barcodeToSku:{}};
 let outletByCc={},currentVehicle='all',fbConnected=false;
 let html5QrCode=null,scanTargetInvoice=null;
 
@@ -156,6 +156,7 @@ async function initConnection(){
 async function boot(){
   fbConnected=await initConnection();
   try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});}catch(e){}
+  try{const r=await fetch('./sku_master.json');SKU_MASTER=await r.json();}catch(e){console.error('Gagal memuat sku_master.json:',e);}
 
   if(fbConnected){
     try{const doc=await db.collection('rencana').doc('current').get();if(doc.exists)RENCANA=doc.data();}catch(e){console.error(e);}
@@ -174,8 +175,8 @@ async function boot(){
 
 /* ===== Template & Upload ===== */
 document.getElementById('downloadTemplateBtn').addEventListener('click',()=>{
-  const ws=XLSX.utils.aoa_to_sheet([['No Invoice','Kode SKU / Barcode','Nama SKU','Qty','Harga Satuan'],['INV-000123','8991002123456','Indomie Goreng Karton',24,85000],['INV-000123','8991002654321','Kecap ABC 600ml',12,32000],['INV-000124','8991002987654','Teh Botol Karton',10,45000]]);
-  ws['!cols']=[{wch:16},{wch:18},{wch:26},{wch:8},{wch:14}];
+  const ws=XLSX.utils.aoa_to_sheet([['No Invoice','Kode SKU','Nama SKU','Qty','Harga Satuan'],['INV-000123','20060385','ROYCO FDS CHICKEN MULTIPCK 48X(6X8G)',24,85000],['INV-000123','20060459','TARO NET POTATO FLAVOR 40X10G',12,32000],['INV-000124','20060486','LIFEBUOY BW MLDCARE PCH+PUF 48X60ML',10,45000]]);
+  ws['!cols']=[{wch:16},{wch:14},{wch:36},{wch:8},{wch:14}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Template');XLSX.writeFile(wb,'template_sku_detail.xlsx');
 });
 
@@ -307,7 +308,11 @@ function render(){
       const isMatch=loadedQty!==''&&loadedQty!=null&&Number(loadedQty)===Number(line.qty);
       if(!isMatch)allMatch=false;
       const icon=loadedQty===''||loadedQty==null?'⬜':(isMatch?'✅':'⚠️');
-      rowsHtml+='<div class="sku-row" data-sku="'+escapeHtml(line.sku)+'"><span class="sku-icon">'+icon+'</span><div class="sname">'+escapeHtml(line.name)+'<span class="code">'+escapeHtml(line.sku)+'</span></div><span class="sexpected">exp: '+line.qty+'</span><input type="number" min="0" data-inv="'+escapeHtml(s.invoiceNo)+'" data-sku="'+escapeHtml(line.sku)+'" data-idx="'+i+'" value="'+(loadedQty===''||loadedQty==null?'':loadedQty)+'" class="'+(loadedQty===''||loadedQty==null?'':(isMatch?'match':'mismatch'))+'" placeholder="qty"></div>';
+      const masterInfo=SKU_MASTER.skuInfo&&SKU_MASTER.skuInfo[line.sku];
+      const pcPerCs=masterInfo&&masterInfo.p;
+      const pcsHint=pcPerCs?(' · '+pcPerCs+' pcs/karton'):'';
+      const expTotalPcs=pcPerCs?(' ('+(line.qty*pcPerCs).toLocaleString('id-ID')+' pcs)'):'';
+      rowsHtml+='<div class="sku-row" data-sku="'+escapeHtml(line.sku)+'"><span class="sku-icon">'+icon+'</span><div class="sname">'+escapeHtml(line.name)+'<span class="code">'+escapeHtml(line.sku)+pcsHint+'</span></div><span class="sexpected">exp: '+line.qty+expTotalPcs+'</span><input type="number" min="0" data-inv="'+escapeHtml(s.invoiceNo)+'" data-sku="'+escapeHtml(line.sku)+'" data-idx="'+i+'" value="'+(loadedQty===''||loadedQty==null?'':loadedQty)+'" class="'+(loadedQty===''||loadedQty==null?'':(isMatch?'match':'mismatch'))+'" placeholder="qty"></div>';
     });
 
     if(allFilled){if(allMatch)matchedInv++;else mismatchInv++;}
@@ -366,13 +371,34 @@ function openScanner(invoiceNo){
     document.getElementById('scanFeedback').className='scan-feedback bad';
   });
 }
+function resolveScannedCode(code){
+  // 1) Cocokkan langsung ke "Kode SKU" apa adanya (mendukung invoice yang
+  //    memang diisi dengan barcode persis sebagai Kode SKU).
+  // 2) Kalau tidak ketemu, terjemahkan lewat referensi Product Hierarchy
+  //    (barcode satuan / barcode karton → Kode SKU asli), karena satu SKU
+  //    bisa dipindai dari barcode produk (PC) ATAU barcode outer/karton (CS).
+  const candidates=[code];
+  const stripped=code.replace(/^0+/,'')||'0';
+  const master=(SKU_MASTER.barcodeToSku&&(SKU_MASTER.barcodeToSku[code]||SKU_MASTER.barcodeToSku[stripped]))||[];
+  master.forEach(sku=>{if(!candidates.includes(sku))candidates.push(sku);});
+  return candidates;
+}
+
 function onScanSuccess(decodedText){
   const card=[...document.querySelectorAll('.inv-card')].find(c=>c.dataset.invoiceNo===scanTargetInvoice);
   if(!card){return;}
-  const row=card.querySelector('.sku-row[data-sku="'+CSS.escape(decodedText)+'"]');
   const feedback=document.getElementById('scanFeedback');
+  const candidates=resolveScannedCode(decodedText);
+  let row=null;
+  for(const cand of candidates){
+    row=card.querySelector('.sku-row[data-sku="'+CSS.escape(cand)+'"]');
+    if(row)break;
+  }
   if(!row){
-    feedback.textContent='❌ Barcode "'+decodedText+'" tidak ditemukan di invoice ini.';
+    const knownName=SKU_MASTER.skuInfo&&candidates.map(c=>SKU_MASTER.skuInfo[c]).find(Boolean);
+    feedback.textContent=knownName
+      ? '❌ "'+knownName+'" dikenali, tapi tidak ada di invoice ini.'
+      : '❌ Barcode "'+decodedText+'" tidak dikenali / tidak ada di invoice ini.';
     feedback.className='scan-feedback bad';
     if(navigator.vibrate)navigator.vibrate(200);
     return;

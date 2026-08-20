@@ -179,3 +179,17 @@ Kalau kartu invoice tidak muncul sama sekali, itu tandanya rencana atau detail
 SKU belum berhasil dipublikasikan/dimuat — cek status koneksi Firebase di
 bagian atas halaman.
 
+## Referensi Barcode Produk (sku_master.json)
+
+File baru `sku_master.json` berisi 19.519 SKU dari Product Hierarchy Anda,
+memetakan **barcode produk satuan (PC)** maupun **barcode karton/outer (CS)**
+ke Kode SKU aslinya (lebih dari 43.000 kombinasi barcode).
+
+Manfaatnya: saat checker memindai barcode apa pun yang tertempel di kardus
+(baik barcode karton besar maupun barcode kemasan satuan), sistem otomatis
+menerjemahkannya ke Kode SKU yang sama dan mencocokkan ke baris invoice yang
+tepat — checker tidak perlu tahu/pilih jenis barcode mana yang dipindai.
+
+File ini murni referensi statis (tidak berubah-ubah), jadi tidak perlu masuk
+ke Firebase — cukup diupload sebagai file biasa ke GitHub bersama file lain.
+
