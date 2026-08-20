@@ -43,10 +43,27 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 .refresh-row button{position:relative;transition:all .15s;}
 .refresh-row button:disabled{opacity:0.7;cursor:wait;}
 .ts.fresh{color:var(--go-dark);font-weight:700;}
+.nav-row{display:flex;gap:8px;margin-bottom:14px;}
+.nav-row button{flex:1;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:10px;padding:10px;font-weight:700;font-size:12.5px;cursor:pointer;}
+.modal-overlay{position:fixed;inset:0;background:rgba(14,42,62,0.55);z-index:5000;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:var(--surface-2);border-radius:16px;padding:22px 20px;width:100%;max-width:320px;text-align:center;}
+.modal-box h3{font-family:var(--font-display);margin:0 0 6px;font-size:16px;}
+.modal-box p{font-size:12.5px;color:var(--muted);margin:0 0 14px;}
+.modal-box input{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:11px 12px;font-size:15px;text-align:center;letter-spacing:2px;outline:none;margin-bottom:10px;box-sizing:border-box;}
+.modal-box input:focus{border-color:var(--ink-2);}
+.modal-box .err-msg{color:var(--danger);font-size:12px;font-weight:600;min-height:16px;margin-bottom:8px;}
+.modal-box .btn-row{display:flex;gap:8px;}
+.modal-box .btn-row button{flex:1;border:none;border-radius:9px;padding:11px;font-weight:700;font-size:13px;cursor:pointer;}
+.modal-box .btn-cancel{background:var(--surface);color:var(--ink-2);}
+.modal-box .btn-submit{background:var(--ink-2);color:#fff;}
+#mainContent{display:none;}
+#mainContent.unlocked{display:block;}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="mainContent">
+<div class="nav-row"><button id="navMap">🗺️ Kembali ke Peta</button><button id="navAdmin">⚙️ Admin</button></div>
 <header><h1>📊 Dashboard Monitor Pengantaran</h1><p>Status pengiriman real-time berdasarkan rencana & laporan driver.</p></header>
 
 <div class="card">
@@ -84,13 +101,57 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 </div>
 </div>
 <div id="toast"></div>
+<div class="modal-overlay" id="pwModal">
+  <div class="modal-box">
+    <h3>🔒 Masuk ke Dashboard</h3>
+    <p>Masukkan password untuk melanjutkan.</p>
+    <input type="password" id="pwInput" placeholder="Password" autocomplete="off">
+    <div class="err-msg" id="pwErr"></div>
+    <div class="btn-row">
+      <button class="btn-cancel" id="pwCancel">Kembali ke Peta</button>
+      <button class="btn-submit" id="pwSubmit">Masuk</button>
+    </div>
+  </div>
+</div>
 
 <script>
-let RENCANA=null,DELIVERIES={},OUTLETS=[],outletByCc={},SKU_DETAIL={items:{}},MUAT_CHECK={checks:{}};
-let ghCreds=null;
+/* ===== Password gate (shared with index.html / admin.html) ===== */
+const ADMIN_PW_HASH='0e86e8f45f7f50d4038d9cf73e526ad31c6ffde75a188bc68aa1cb48a7b0271c';
+async function sha256Hex(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function isUnlocked(){return sessionStorage.getItem('swikie_unlocked')==='1';}
+function setUnlocked(){sessionStorage.setItem('swikie_unlocked','1');}
 
-function parseHash(){const h=location.hash.slice(1);if(!h)return;const p=new URLSearchParams(h);const t=p.get('t'),o=p.get('o'),r=p.get('r');if(t&&o&&r)ghCreds={token:t,owner:o,repo:r};}
-parseHash();
+const pwModal=document.getElementById('pwModal'),pwInput=document.getElementById('pwInput'),pwErr=document.getElementById('pwErr');
+if(isUnlocked()){
+  document.getElementById('mainContent').classList.add('unlocked');
+}else{
+  pwModal.classList.add('show');
+  setTimeout(()=>pwInput.focus(),150);
+}
+document.getElementById('pwCancel').addEventListener('click',()=>{window.location.href='./index.html';});
+async function submitPw(){
+  const val=pwInput.value;
+  if(!val){pwErr.textContent='Password tidak boleh kosong.';return;}
+  const hash=await sha256Hex(val);
+  if(hash===ADMIN_PW_HASH){
+    setUnlocked();
+    pwModal.classList.remove('show');
+    document.getElementById('mainContent').classList.add('unlocked');
+    loadData();
+  }else{
+    pwErr.textContent='Password salah. Coba lagi.';
+    pwInput.value='';pwInput.focus();
+  }
+}
+document.getElementById('pwSubmit').addEventListener('click',submitPw);
+pwInput.addEventListener('keydown',e=>{if(e.key==='Enter')submitPw();});
+document.getElementById('navMap').addEventListener('click',()=>{window.location.href='./index.html';});
+document.getElementById('navAdmin').addEventListener('click',()=>{window.location.href='./admin.html';});
+
+let RENCANA=null,DELIVERIES={},OUTLETS=[],outletByCc={},SKU_DETAIL={items:{}},MUAT_CHECK={checks:{}};
 
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtRp(n){return'Rp '+Number(n).toLocaleString('id-ID');}
@@ -104,7 +165,7 @@ async function loadData(){
   if(btn){btn.disabled=true;btn.textContent='⏳ Memuat…';}
   tsEl.classList.remove('fresh');
   try{
-    if(!FIREBASE_CONFIGURED){throw new Error('Firebase belum dikonfigurasi (edit firebase-config.js).');}
+    if(typeof FIREBASE_CONFIGURED==='undefined'||!FIREBASE_CONFIGURED){throw new Error('Firebase belum dikonfigurasi (edit firebase-config.js dan pastikan file itu ikut terupload).');}
     const connected=await firebaseReady;
     if(!connected)throw new Error('Gagal terhubung ke Firebase.');
 
@@ -139,6 +200,7 @@ async function loadData(){
     if(btn){btn.textContent='✅ Diperbarui';showToast('Data berhasil diperbarui.');}
   }catch(err){
     if(btn){btn.textContent='⚠️ Gagal, coba lagi';}
+    document.getElementById('statsArea').innerHTML='<div class="empty">⚠️ '+escapeHtml(err.message)+'</div>';
     showToast('Gagal memuat data: '+err.message);
   }finally{
     if(btn){
@@ -346,7 +408,7 @@ document.getElementById('exportXlsxBtn').addEventListener('click',()=>{
   showToast('File Excel berhasil diunduh.');
 });
 
-loadData();
+if(isUnlocked())loadData();
 </script>
 </body>
 </html>

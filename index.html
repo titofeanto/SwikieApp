@@ -152,24 +152,33 @@ async function boot(){
   try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();}catch(e){showToast('Gagal memuat outlets.json');return;}
   OUTLETS.forEach((o,i)=>{o.id=i;outletByCc[o.cc]=o;});
 
-  fbConnected = FIREBASE_CONFIGURED && await firebaseReady;
-  if(fbConnected){
-    try{
-      const doc=await db.collection('rencana').doc('current').get();
-      if(doc.exists)RENCANA=doc.data();
-    }catch(e){console.error('Gagal memuat rencana:',e);}
-    // Real-time listener: peta otomatis update begitu ada laporan baru dari driver lain,
-    // tanpa perlu refresh manual — penting karena dipakai banyak orang bersamaan.
-    db.collection('deliveries').onSnapshot(snap=>{
-      snap.docChanges().forEach(change=>{
-        if(change.type==='removed')return;
-        const d=change.doc.data();
-        DELIVERIES[change.doc.id]=d;
-      });
-      if(currentMode==='plan')applyFilters();
-    }, err=>console.error('Listener deliveries gagal:',err));
-  }else{
-    showToast('Firebase belum terhubung. Peta tetap bisa dipakai untuk browsing outlet.');
+  // Seluruh proses Firebase dibungkus try/catch: apa pun yang salah di sini
+  // TIDAK BOLEH menghentikan peta. Kalau Firebase gagal, peta tetap tampil
+  // dengan seluruh outlet, hanya fitur rencana/laporan yang tidak aktif.
+  try{
+    fbConnected = typeof FIREBASE_CONFIGURED!=='undefined' && FIREBASE_CONFIGURED && await firebaseReady;
+    if(fbConnected){
+      try{
+        const doc=await db.collection('rencana').doc('current').get();
+        if(doc.exists)RENCANA=doc.data();
+      }catch(e){console.error('Gagal memuat rencana:',e);}
+      // Real-time listener: peta otomatis update begitu ada laporan baru dari driver lain,
+      // tanpa perlu refresh manual — penting karena dipakai banyak orang bersamaan.
+      db.collection('deliveries').onSnapshot(snap=>{
+        snap.docChanges().forEach(change=>{
+          if(change.type==='removed')return;
+          const d=change.doc.data();
+          DELIVERIES[change.doc.id]=d;
+        });
+        if(currentMode==='plan')applyFilters();
+      }, err=>console.error('Listener deliveries gagal:',err));
+    }else{
+      showToast('Firebase belum terhubung — cek firebase-config.js. Peta tetap bisa dipakai untuk browsing outlet.');
+    }
+  }catch(err){
+    console.error('Firebase init error:',err);
+    fbConnected=false;
+    showToast('Firebase bermasalah: '+err.message+'. Peta tetap bisa dipakai untuk browsing outlet.');
   }
   initApp();
 }
@@ -455,32 +464,35 @@ function updateRouteFabLabel(){const l=document.getElementById('routeFabText');i
 let toastTimer;function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3600);}
 
 /* ===== Menu: Dashboard / Admin ===== */
-// SHA-256 hash of the admin password — the plain password itself is never stored here.
+// SHA-256 hash of the shared password — the plain password itself is never stored here.
 // This is a soft UX gate, not real security: anyone with access to this file's code
-// could brute-force it offline. Real protection is the GitHub token, which is never
-// embedded and must be typed manually into admin.html each session.
+// could brute-force it offline. Real protection is Firestore Security Rules.
 const ADMIN_PW_HASH='0e86e8f45f7f50d4038d9cf73e526ad31c6ffde75a188bc68aa1cb48a7b0271c';
 async function sha256Hex(str){
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
   return[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
-function currentHash(){return location.hash||'';}
+function isUnlocked(){return sessionStorage.getItem('swikie_unlocked')==='1';}
+function setUnlocked(){sessionStorage.setItem('swikie_unlocked','1');}
 
 const menuBtn=document.getElementById('menuBtn'),menuDropdown=document.getElementById('menuDropdown');
 menuBtn.addEventListener('click',e=>{e.stopPropagation();menuDropdown.classList.toggle('show');});
 document.addEventListener('click',()=>menuDropdown.classList.remove('show'));
 
-document.getElementById('gotoDashboard').addEventListener('click',()=>{
-  window.location.href='./dashboard.html'+currentHash();
-});
-
 const pwModal=document.getElementById('pwModal'),pwInput=document.getElementById('pwInput'),pwErr=document.getElementById('pwErr');
-document.getElementById('gotoAdmin').addEventListener('click',()=>{
+let pendingDestination=null;
+
+function goToProtectedPage(dest){
   menuDropdown.classList.remove('show');
+  if(isUnlocked()){window.location.href=dest;return;}
+  pendingDestination=dest;
   pwInput.value='';pwErr.textContent='';
   pwModal.classList.add('show');
   setTimeout(()=>pwInput.focus(),100);
-});
+}
+document.getElementById('gotoDashboard').addEventListener('click',()=>goToProtectedPage('./dashboard.html'));
+document.getElementById('gotoAdmin').addEventListener('click',()=>goToProtectedPage('./admin.html'));
+
 document.getElementById('pwCancel').addEventListener('click',()=>pwModal.classList.remove('show'));
 pwModal.addEventListener('click',e=>{if(e.target===pwModal)pwModal.classList.remove('show');});
 async function submitPw(){
@@ -488,7 +500,8 @@ async function submitPw(){
   if(!val){pwErr.textContent='Password tidak boleh kosong.';return;}
   const hash=await sha256Hex(val);
   if(hash===ADMIN_PW_HASH){
-    window.location.href='./admin.html'+currentHash();
+    setUnlocked();
+    window.location.href=pendingDestination;
   }else{
     pwErr.textContent='Password salah. Coba lagi.';
     pwInput.value='';pwInput.focus();

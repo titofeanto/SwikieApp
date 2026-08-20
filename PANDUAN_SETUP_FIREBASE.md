@@ -134,7 +134,48 @@ Firestore): `rencana.json`, `deliveries.json`, `sku_detail.json`,
 
 - **"Firebase belum dikonfigurasi"** → `firebase-config.js` belum diedit dengan
   benar, atau file itu tidak ikut terupload.
+- **"firebase-config.js gagal dimuat"** → file `firebase-config.js` **harus**
+  ada di folder/level yang SAMA dengan `index.html`, `admin.html`, dsb di
+  repository GitHub Anda — bukan di dalam subfolder. Cek langsung di GitHub,
+  pastikan semua 7 file (5 html + outlets.json + firebase-config.js) muncul
+  sejajar di halaman utama repo, bukan salah satunya "tersembunyi" di dalam
+  folder lain.
 - **"Gagal terhubung ke Firebase"** → cek ejaan `projectId` di config, dan
   pastikan Langkah 3 & 4 (Firestore + Login Anonim) sudah aktif.
 - **"Missing or insufficient permissions"** → Security Rules di Langkah 3 belum
   ter-publish dengan benar, atau Login Anonim (Langkah 4) belum aktif.
+- Kalau bingung persisnya error apa, buka halaman yang bermasalah di HP →
+  sambungkan ke komputer atau buka lewat Chrome desktop → tekan F12 → tab
+  **Console** akan menunjukkan pesan error yang lebih detail.
+
+## Password Admin & Dashboard
+
+Password saat ini: **`swikie2026`**
+
+- Peta (`index.html`) punya menu "⋯" di kanan atas → Dashboard & Admin, keduanya
+  minta password saat pertama kali diakses.
+- Setelah password benar dimasukkan satu kali, Anda bisa berpindah bebas antara
+  Admin ↔ Dashboard ↔ Peta tanpa diminta password lagi (selama tab browser
+  belum ditutup).
+- Kalau ingin ganti password, beri tahu saya password baru yang diinginkan,
+  nanti saya generate ulang kode terenkripsinya.
+
+## Cara Memakai Scanner Barcode
+
+Scanner **tidak berdiri sendiri** — ia butuh tahu invoice & SKU mana yang
+sedang diperiksa, supaya barcode yang terpindai bisa langsung dicocokkan dan
+diisi otomatis. Urutan supaya scanner muncul:
+
+1. Admin publikasikan **Rencana Pengantaran** dulu (dari `admin.html`).
+2. Buka `muat.html` → upload Excel **Detail SKU** (kolom Kode SKU diisi nomor
+   barcode barang/karton) → klik **Publikasikan Detail SKU ke Firebase**.
+3. Setelah itu, kartu-kartu invoice akan muncul di bagian "Daftar Periksa
+   Muat Barang" — **setiap kartu invoice punya tombol "📷 Scan Barcode
+   untuk Invoice Ini"** sendiri-sendiri.
+4. Tekan tombol itu → kamera terbuka → arahkan ke barcode → begitu cocok,
+   qty di baris SKU itu otomatis bertambah 1 (dengan getar & tanda ✅).
+
+Kalau kartu invoice tidak muncul sama sekali, itu tandanya rencana atau detail
+SKU belum berhasil dipublikasikan/dimuat — cek status koneksi Firebase di
+bagian atas halaman.
+

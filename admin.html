@@ -67,12 +67,29 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 .conn-status .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;}
 .conn-status.ok .dot{background:var(--go);}.conn-status.ok{color:var(--go-dark);background:#EAF7EE;}
 .conn-status.err .dot{background:var(--danger);}.conn-status.err{color:var(--danger);background:#FCEAE7;}
+.nav-row{display:flex;gap:8px;margin-bottom:14px;}
+.nav-row button{flex:1;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:10px;padding:10px;font-weight:700;font-size:12.5px;cursor:pointer;}
+.modal-overlay{position:fixed;inset:0;background:rgba(14,42,62,0.55);z-index:5000;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:var(--surface-2);border-radius:16px;padding:22px 20px;width:100%;max-width:320px;text-align:center;}
+.modal-box h3{font-family:var(--font-display);margin:0 0 6px;font-size:16px;}
+.modal-box p{font-size:12.5px;color:var(--muted);margin:0 0 14px;}
+.modal-box input{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:11px 12px;font-size:15px;text-align:center;letter-spacing:2px;outline:none;margin-bottom:10px;box-sizing:border-box;}
+.modal-box input:focus{border-color:var(--ink-2);}
+.modal-box .err-msg{color:var(--danger);font-size:12px;font-weight:600;min-height:16px;margin-bottom:8px;}
+.modal-box .btn-row{display:flex;gap:8px;}
+.modal-box .btn-row button{flex:1;border:none;border-radius:9px;padding:11px;font-weight:700;font-size:13px;cursor:pointer;}
+.modal-box .btn-cancel{background:var(--surface);color:var(--ink-2);}
+.modal-box .btn-submit{background:var(--ink-2);color:#fff;}
+#mainContent{display:none;}
+#mainContent.unlocked{display:block;}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:999;transition:transform .25s;box-shadow:0 4px 16px rgba(0,0,0,0.3);}
 #toast.show{transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="mainContent">
+<div class="nav-row"><button id="navMap">🗺️ Kembali ke Peta</button><button id="navDashboard">📊 Dashboard</button></div>
 <header><h1>🧾 Rencana Pengantaran</h1><p>Upload invoice, pilih kendaraan, bagi otomatis, publikasikan ke tim — tersimpan di Firebase, aman untuk dipakai banyak orang bersamaan.</p></header>
 
 <div class="conn-status" id="connStatus"><div class="dot"></div><span id="connStatusText">Menghubungkan ke Firebase…</span></div>
@@ -116,8 +133,55 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 <div class="card"><button class="btn btn-danger" id="resetBtn">Hapus Data Lokal di Browser Ini</button></div>
 </div>
 <div id="toast"></div>
+<div class="modal-overlay" id="pwModal">
+  <div class="modal-box">
+    <h3>🔒 Masuk ke Admin</h3>
+    <p>Masukkan password untuk melanjutkan.</p>
+    <input type="password" id="pwInput" placeholder="Password" autocomplete="off">
+    <div class="err-msg" id="pwErr"></div>
+    <div class="btn-row">
+      <button class="btn-cancel" id="pwCancel">Kembali ke Peta</button>
+      <button class="btn-submit" id="pwSubmit">Masuk</button>
+    </div>
+  </div>
+</div>
 
 <script>
+/* ===== Password gate (shared with index.html / dashboard.html) ===== */
+const ADMIN_PW_HASH='0e86e8f45f7f50d4038d9cf73e526ad31c6ffde75a188bc68aa1cb48a7b0271c';
+async function sha256Hex(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function isUnlocked(){return sessionStorage.getItem('swikie_unlocked')==='1';}
+function setUnlocked(){sessionStorage.setItem('swikie_unlocked','1');}
+
+const pwModal=document.getElementById('pwModal'),pwInput=document.getElementById('pwInput'),pwErr=document.getElementById('pwErr');
+if(isUnlocked()){
+  document.getElementById('mainContent').classList.add('unlocked');
+}else{
+  pwModal.classList.add('show');
+  setTimeout(()=>pwInput.focus(),150);
+}
+document.getElementById('pwCancel').addEventListener('click',()=>{window.location.href='./index.html';});
+async function submitPw(){
+  const val=pwInput.value;
+  if(!val){pwErr.textContent='Password tidak boleh kosong.';return;}
+  const hash=await sha256Hex(val);
+  if(hash===ADMIN_PW_HASH){
+    setUnlocked();
+    pwModal.classList.remove('show');
+    document.getElementById('mainContent').classList.add('unlocked');
+  }else{
+    pwErr.textContent='Password salah. Coba lagi.';
+    pwInput.value='';pwInput.focus();
+  }
+}
+document.getElementById('pwSubmit').addEventListener('click',submitPw);
+pwInput.addEventListener('keydown',e=>{if(e.key==='Enter')submitPw();});
+document.getElementById('navMap').addEventListener('click',()=>{window.location.href='./index.html';});
+document.getElementById('navDashboard').addEventListener('click',()=>{window.location.href='./dashboard.html';});
+
 /* ===== CONFIG ===== */
 const VEHICLES_DEF = [
   {id:'de',name:'Double Engkel',capacity:550,hex:'#1565C0'},
@@ -137,13 +201,23 @@ let manuallyAdjusted = false;
 /* ===== Connection status ===== */
 async function initConnection(){
   const el = document.getElementById('connStatus'), txt = document.getElementById('connStatusText');
-  if(!FIREBASE_CONFIGURED){
-    el.className='conn-status err'; txt.textContent='Firebase belum dikonfigurasi. Edit firebase-config.js.';
+  try{
+    if(typeof FIREBASE_CONFIGURED==='undefined'){
+      el.className='conn-status err'; txt.textContent='firebase-config.js gagal dimuat — cek apakah file itu ada di folder yang sama di GitHub.';
+      return false;
+    }
+    if(!FIREBASE_CONFIGURED){
+      el.className='conn-status err'; txt.textContent='Firebase belum dikonfigurasi. Edit firebase-config.js.';
+      return false;
+    }
+    const ok = await firebaseReady;
+    if(ok){ el.className='conn-status ok'; txt.textContent='Terhubung ke Firebase.'; return true; }
+    el.className='conn-status err'; txt.textContent='Gagal terhubung ke Firebase.'; return false;
+  }catch(err){
+    console.error('initConnection error:',err);
+    el.className='conn-status err'; txt.textContent='Error: '+err.message;
     return false;
   }
-  const ok = await firebaseReady;
-  if(ok){ el.className='conn-status ok'; txt.textContent='Terhubung ke Firebase.'; return true; }
-  el.className='conn-status err'; txt.textContent='Gagal terhubung ke Firebase.'; return false;
 }
 
 fetch('./outlets.json').then(r=>r.ok?r.json():Promise.reject()).then(d=>{OUTLETS=d;renderInvoices();}).catch(()=>showToast('Gagal memuat outlets.json'));
