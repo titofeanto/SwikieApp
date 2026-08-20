@@ -102,7 +102,7 @@ tr.invoice-row.done{background:#F6FBF7;}
 <div class="vehicle-row" id="vehicleRow"></div>
 <div class="prog-summary" id="progSummary"></div>
 <div style="overflow-x:auto;">
-<table><thead><tr><th>No.</th><th>Tgl</th><th>No Invoice</th><th>Outlet</th><th class="num">Nilai</th><th></th></tr></thead><tbody id="invoiceListBody"></tbody></table>
+<table><thead><tr><th>No.</th><th>Tgl</th><th>No Invoice</th><th>Outlet</th><th class="num">Nilai</th><th></th><th></th></tr></thead><tbody id="invoiceListBody"></tbody></table>
 </div>
 <div class="empty-row" id="listEmpty" style="display:none;">Belum ada invoice untuk kendaraan ini.</div>
 </div>
@@ -138,7 +138,7 @@ tr.invoice-row.done{background:#F6FBF7;}
 <script>
 /* ===== State ===== */
 let OUTLETS=[],RENCANA=null,INVOICES={},MUAT_CHECK={checks:{}},SKU_MASTER={skuInfo:{},barcodeToSku:{}};
-let outletByCc={},currentVehicle='all',fbConnected=false;
+let outletByCc={},currentVehicle='all',fbConnected=false,codStops=[];
 let html5QrCode=null,currentInvoiceNo=null;
 let skuToInvoices={}; // skuCode -> [invoiceNo,...] within today's plan (for cross-invoice hints)
 
@@ -174,6 +174,16 @@ async function boot(){
         try{const doc=await db.collection('invoices').doc(sanitizeDocId(invNo)).get();if(doc.exists)INVOICES[invNo]=doc.data();}catch(e){console.error(e);}
       }));
     }
+    // Invoice berstatus COD juga perlu dicek checker sebelum diambil —
+    // ambil terpisah, tidak tergantung pada rencana/kendaraan.
+    try{
+      const snap=await db.collection('invoices').where('status','==','cod').get();
+      snap.forEach(doc=>{
+        const inv=doc.data();
+        INVOICES[inv.invoiceNo]=inv;
+        codStops.push({cc:inv.outletCode,invoiceNo:inv.invoiceNo,invoiceValue:inv.totalValue||0,vehicleId:'cod',vehicleName:'COD',vehicleHex:'#8A5A16'});
+      });
+    }catch(e){console.error('Gagal memuat invoice COD:',e);}
     try{const snap=await db.collection('muatChecks').get();snap.forEach(doc=>{MUAT_CHECK.checks[doc.id]=doc.data();});}catch(e){console.error(e);}
     db.collection('muatChecks').onSnapshot(snap=>{
       snap.docChanges().forEach(ch=>{if(ch.type!=='removed')MUAT_CHECK.checks[ch.doc.id]=ch.doc.data();});
@@ -199,8 +209,10 @@ function buildSkuIndex(){
 /* ===== Vehicle chips ===== */
 function buildVehicleChips(){
   const row=document.getElementById('vehicleRow');
-  if(!RENCANA||!RENCANA.vehicles||!RENCANA.vehicles.length){row.innerHTML='';return;}
-  row.innerHTML='<div class="vchip active" data-v="all" style="background:#0E2A3E;">Semua</div>'+RENCANA.vehicles.map(v=>'<div class="vchip" data-v="'+v.id+'" style="background:'+(v.hex||'#555')+';">'+escapeHtml(v.name)+'</div>').join('');
+  const vehicleChips=(RENCANA&&RENCANA.vehicles&&RENCANA.vehicles.length)?RENCANA.vehicles.map(v=>'<div class="vchip" data-v="'+v.id+'" style="background:'+(v.hex||'#555')+';">'+escapeHtml(v.name)+'</div>').join(''):'';
+  const codChip=codStops.length?'<div class="vchip" data-v="cod" style="background:#8A5A16;">🚚 COD ('+codStops.length+')</div>':'';
+  if(!vehicleChips&&!codChip){row.innerHTML='';return;}
+  row.innerHTML='<div class="vchip active" data-v="all" style="background:#0E2A3E;">Semua</div>'+vehicleChips+codChip;
   row.querySelectorAll('.vchip').forEach(chip=>chip.addEventListener('click',()=>{
     currentVehicle=chip.dataset.v;
     row.querySelectorAll('.vchip').forEach(c=>c.classList.toggle('active',c===chip));
@@ -225,21 +237,29 @@ function invoiceCheckStatus(invNo){
 }
 
 function renderList(){
-  if(!RENCANA||!RENCANA.vehicles||!RENCANA.vehicles.length){
+  const hasVehiclePlan=RENCANA&&RENCANA.vehicles&&RENCANA.vehicles.length;
+  if(!hasVehiclePlan&&!codStops.length){
     document.getElementById('listEmpty').style.display='block';
-    document.getElementById('listEmpty').textContent='Rencana pengantaran belum tersedia. Publikasikan dari admin.html dulu.';
+    document.getElementById('listEmpty').textContent='Rencana pengantaran & invoice COD belum tersedia. Publikasikan dari admin.html dulu.';
     document.getElementById('invoiceListBody').innerHTML='';document.getElementById('progSummary').innerHTML='';return;
   }
   let stops=[];
-  RENCANA.vehicles.forEach(v=>{
-    if(currentVehicle!=='all'&&v.id!==currentVehicle)return;
-    (v.stops||[]).forEach(s=>stops.push(Object.assign({},s,{vehicleId:v.id,vehicleName:v.name,vehicleHex:v.hex})));
-  });
+  if(currentVehicle==='cod'){
+    stops=codStops.slice();
+  }else if(currentVehicle==='all'){
+    if(hasVehiclePlan)RENCANA.vehicles.forEach(v=>(v.stops||[]).forEach(s=>stops.push(Object.assign({},s,{vehicleId:v.id,vehicleName:v.name,vehicleHex:v.hex}))));
+    stops=stops.concat(codStops);
+  }else{
+    if(hasVehiclePlan){
+      const v=RENCANA.vehicles.find(vv=>vv.id===currentVehicle);
+      if(v)(v.stops||[]).forEach(s=>stops.push(Object.assign({},s,{vehicleId:v.id,vehicleName:v.name,vehicleHex:v.hex})));
+    }
+  }
   document.getElementById('countInv').textContent=stops.length;
 
   if(!stops.length){
     document.getElementById('listEmpty').style.display='block';
-    document.getElementById('listEmpty').textContent='Tidak ada invoice untuk kendaraan ini.';
+    document.getElementById('listEmpty').textContent='Tidak ada invoice untuk filter ini.';
     document.getElementById('invoiceListBody').innerHTML='';document.getElementById('progSummary').innerHTML='';return;
   }
   document.getElementById('listEmpty').style.display='none';
@@ -251,7 +271,7 @@ function renderList(){
     const status=invoiceCheckStatus(s.invoiceNo);
     if(status==='ok')okCount++;else if(status==='mismatch')mismatchCount++;else pendingCount++;
     const icon=status==='ok'?'✅':status==='mismatch'?'⚠️':status==='nodata'?'❔':'⬜';
-    return '<tr class="invoice-row'+(status==='ok'?' done':'')+'" data-inv="'+escapeHtml(s.invoiceNo)+'"><td>'+(i+1)+'</td><td style="font-size:11px;">'+escapeHtml((INVOICES[s.invoiceNo]||{}).invoiceDate||'-')+'</td><td>'+escapeHtml(s.invoiceNo)+'</td><td>'+last5(s.cc)+' · '+escapeHtml(outlet?outlet.n:s.cc)+'</td><td class="num">'+fmtRp(s.invoiceValue)+'</td><td class="status-icon">'+icon+'</td></tr>';
+    return '<tr class="invoice-row'+(status==='ok'?' done':'')+'" data-inv="'+escapeHtml(s.invoiceNo)+'"><td>'+(i+1)+'</td><td style="font-size:11px;">'+escapeHtml((INVOICES[s.invoiceNo]||{}).invoiceDate||'-')+'</td><td>'+escapeHtml(s.invoiceNo)+'</td><td>'+last5(s.cc)+' · '+escapeHtml(outlet?outlet.n:s.cc)+'</td><td class="num">'+fmtRp(s.invoiceValue)+'</td><td><span style="font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:20px;color:#fff;background:'+(s.vehicleHex||'#555')+';">'+escapeHtml(s.vehicleName||'')+'</span></td><td class="status-icon">'+icon+'</td></tr>';
   }).join('');
   body.querySelectorAll('.invoice-row').forEach(row=>{
     row.addEventListener('click',()=>openDetail(row.dataset.inv));
@@ -283,7 +303,8 @@ document.getElementById('navDashboard').addEventListener('click',()=>{window.loc
 
 function renderDetail(invNo){
   const inv=INVOICES[invNo];
-  const stopMeta=(RENCANA.vehicles.flatMap(v=>(v.stops||[]).map(s=>Object.assign({},s,{vehicleName:v.name,vehicleHex:v.hex}))).find(s=>s.invoiceNo===invNo))||{};
+  const vehicleStops=(RENCANA&&RENCANA.vehicles)?RENCANA.vehicles.flatMap(v=>(v.stops||[]).map(s=>Object.assign({},s,{vehicleName:v.name,vehicleHex:v.hex}))):[];
+  const stopMeta=[...vehicleStops,...codStops].find(s=>s.invoiceNo===invNo)||{};
   const outlet=outletByCc[stopMeta.cc];
   document.getElementById('detailOutletName').textContent=outlet?outlet.n:(inv?inv.outletNameExtract:stopMeta.cc)||'-';
   document.getElementById('detailInvMeta').innerHTML=escapeHtml(invNo)+' · '+fmtRp(stopMeta.invoiceValue||0)+' · <span style="color:'+(stopMeta.vehicleHex||'#555')+';font-weight:700;">'+escapeHtml(stopMeta.vehicleName||'')+'</span>';

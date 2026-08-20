@@ -90,6 +90,16 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 .filter-chips{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
 .fchip{border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:20px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;}
 .fchip.active{background:var(--ink-2);color:#fff;border-color:var(--ink-2);}
+.bulk-bar{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;background:var(--surface);border-radius:10px;padding:10px 12px;}
+.bulk-check{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;cursor:pointer;}
+.bulk-check input{width:16px;height:16px;}
+.bulk-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.bulk-count{font-size:11.5px;color:var(--muted);font-weight:700;margin-right:4px;}
+.btn-bulk{border:none;border-radius:8px;padding:8px 12px;font-weight:700;font-size:11.5px;cursor:pointer;color:#fff;}
+.btn-bulk.today{background:var(--go);}
+.btn-bulk.cod{background:var(--live);}
+.btn-bulk.reset{background:var(--muted);}
+.row-chk{width:16px;height:16px;}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:999;transition:transform .25s;box-shadow:0 4px 16px rgba(0,0,0,0.3);}
 #toast.show{transform:translateX(-50%) translateY(0);}
 </style>
@@ -103,7 +113,8 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 
 <div class="card">
 <h2>📤 Upload Extract Secondary Sale Data <span class="badge" id="countInvoices">0 invoice</span></h2>
-<div class="hint" style="margin-top:0;">Upload langsung file extract dari sistem (kolom: INVNumber, INVDate, Outlet, Outlet Name, SKUCode, ProductName, Case/Dozen/Pieces, TotalQuantity(PCS), PriceCase, GSV, Discount, Tax, Net). Ini <b>satu-satunya sumber data invoice</b> — baris dengan No Invoice + Kode SKU yang sama akan menimpa data lama, yang berbeda akan menambah baru.</div>
+<div class="hint" style="margin-top:0;">Upload langsung file extract dari sistem. Kolom <b>wajib</b>: INVNumber, INVDate, Outlet, SKUCode. Kolom lain (Outlet Name, ProductName, Case/Dozen/Pieces, TotalQuantity(PCS), PriceCase, GSV, Discount, Tax, Net) ikut dipakai kalau ada — kalau file Anda ada kolom tambahan di luar ini, tidak masalah, akan diabaikan. Ini <b>satu-satunya sumber data invoice</b> — baris dengan No Invoice + Kode SKU yang sama akan menimpa data lama, yang berbeda akan menambah baru. Klik tombol di bawah untuk lihat contoh persis formatnya.</div>
+<button class="btn btn-outline btn-sm" id="downloadTemplateBtn" style="margin:8px 0;">⬇ Unduh Contoh Format Extract</button>
 <div class="upload-zone" id="uploadZone"><input type="file" id="fileInput" accept=".xlsx,.xls"><div class="icon">📤</div><div class="main">Klik atau tarik file extract ke sini</div><div class="sub">File .xlsx dari sistem, tanpa perlu diubah formatnya</div></div>
 <div id="uploadSummary"></div>
 <button class="btn btn-go" id="publishInvoicesBtn" style="margin-top:12px;">🚀 Publikasikan Data Invoice ke Firebase</button>
@@ -112,15 +123,24 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 
 <div class="card">
 <h2>📋 Daftar Invoice <span class="badge" id="countInvoiceRows">0</span></h2>
-<div class="hint" style="margin-top:0;margin-bottom:10px;">Pilih status tiap invoice: <b>Kirim Hari Ini</b> (masuk rencana pengantaran & dibagi ke kendaraan) atau <b>COD</b> (perlu disiapkan untuk diambil terpisah, tidak ikut dibagi ke mobil).</div>
+<div class="hint" style="margin-top:0;margin-bottom:10px;">Pilih status tiap invoice: <b>Kirim Hari Ini</b> (masuk rencana pengantaran & dibagi ke kendaraan) atau <b>COD</b> (perlu disiapkan untuk diambil terpisah — tetap muncul di halaman Muat untuk dicek checker, tapi tidak ikut dibagi ke mobil).</div>
 <div class="filter-chips" id="statusFilterChips">
   <div class="fchip active" data-f="all">Semua</div>
   <div class="fchip" data-f="pending">Belum Ditentukan</div>
   <div class="fchip" data-f="today">Kirim Hari Ini</div>
   <div class="fchip" data-f="cod">COD</div>
 </div>
+<div class="bulk-bar" id="bulkBar">
+  <label class="bulk-check"><input type="checkbox" id="selectAllChk"> <span id="selectAllLabel">Pilih semua yang tampil</span></label>
+  <div class="bulk-actions" id="bulkActions" style="display:none;">
+    <span class="bulk-count" id="bulkCount">0 dipilih</span>
+    <button class="btn-bulk today" id="bulkTodayBtn">Tandai: Kirim Hari Ini</button>
+    <button class="btn-bulk cod" id="bulkCodBtn">Tandai: COD</button>
+    <button class="btn-bulk reset" id="bulkResetBtn">Reset ke Belum Ditentukan</button>
+  </div>
+</div>
 <div style="overflow-x:auto;max-height:480px;overflow-y:auto;">
-<table><thead><tr><th>No.</th><th>Tgl Invoice</th><th>No Invoice</th><th>Outlet</th><th class="num">Nilai</th><th>Status</th></tr></thead><tbody id="invoiceTableBody"></tbody></table>
+<table><thead><tr><th><input type="checkbox" id="headerChk"></th><th>No.</th><th>Tgl Invoice</th><th>No Invoice</th><th>Outlet</th><th class="num">Nilai</th><th>Status</th></tr></thead><tbody id="invoiceTableBody"></tbody></table>
 </div>
 <div class="empty-row" id="invoiceTableEmpty">Belum ada data invoice. Upload & publikasikan extract di atas dulu.</div>
 </div>
@@ -260,6 +280,18 @@ uploadZone.addEventListener('click',()=>fileInput.click());
 uploadZone.addEventListener('drop',e=>{if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});
 fileInput.addEventListener('change',e=>{if(e.target.files.length)handleFile(e.target.files[0]);fileInput.value='';});
 
+document.getElementById('downloadTemplateBtn').addEventListener('click',()=>{
+  const headers=['DistID','DistName','Salesman','SalesmaneNama','INVNumber','Billing Type','INVDate','Outlet','Outlet Name','Business Type','OutletAddress','Sub_division','Category','Market','SKUCode','ProductName','Case','Dozen','Pieces','Weight','TotalQuantity(PCS)','PriceCase','GSV','Discount','Tax','Net'];
+  const sample=[
+    ['18078740','PT SWIKIE INDAH PRATAMA','11','STEFANUS-SPLIT HC FOOD','26001100198','Cashmemo Normal','20/08/2026','917102000300864432','ZEA','Teleordering Outlet','GENERAL TRADE JL SUNGAI WARMON','HOME CARE','HOME & HYGIENE','HOUSEHOLD CLEAN',65085582,'WIPOL KARBOL CEMARA PCH MDF 24X390G',0,0,3,1170,3,184104,23013,0,2531.43,25544.43],
+    ['18078740','PT SWIKIE INDAH PRATAMA','11','STEFANUS-SPLIT HC FOOD','26001100198','Cashmemo Normal','20/08/2026','917102000300864432','ZEA','Teleordering Outlet','GENERAL TRADE JL SUNGAI WARMON','HOME CARE','DISHWASH','DISHWASH',65587848,'SUNLIGHT LIME WKB POUCH RL 12X400GR',1,0,0,4944,12,80652,80652,0,8871.72,89523.72]
+  ];
+  const ws=XLSX.utils.aoa_to_sheet([headers,...sample]);
+  ws['!cols']=headers.map(()=>({wch:16}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Contoh Extract');XLSX.writeFile(wb,'contoh_format_extract.xlsx');
+  showToast('Kolom yang WAJIB ada: INVNumber, INVDate, Outlet, SKUCode. Kolom lain ikut mengisi detail nilai & qty.');
+});
+
 function normalizeKey(k){return String(k).toLowerCase().replace(/[^a-z0-9]/g,'');}
 function findHeaderRow(rows){
   // header baris biasanya berisi "INVNumber"/"SKUCode" — cari barisnya, bukan asumsikan baris 1
@@ -394,6 +426,8 @@ document.querySelectorAll('#statusFilterChips .fchip').forEach(chip=>{
   });
 });
 
+let selectedInvoices=new Set();
+
 function renderInvoiceTable(){
   let list=Object.values(invoicesLocal);
   document.getElementById('countInvoiceRows').textContent=list.length;
@@ -402,11 +436,13 @@ function renderInvoiceTable(){
 
   const body=document.getElementById('invoiceTableBody');
   document.getElementById('invoiceTableEmpty').style.display=list.length?'none':'block';
+  document.getElementById('selectAllLabel').textContent='Pilih semua yang tampil ('+list.length+')';
   body.innerHTML=list.map((inv,i)=>{
     const outlet=outletByCc[inv.outletCode];
     const outletLabel=last5(inv.outletCode)+' · '+escapeHtml(outlet?outlet.n:(inv.outletNameExtract||'?'));
     const status=inv.status||'pending';
-    return '<tr><td>'+(i+1)+'</td><td style="font-size:11px;">'+escapeHtml(inv.invoiceDate||'-')+'</td><td>'+escapeHtml(inv.invoiceNo)+'</td><td>'+outletLabel+'</td><td class="num">'+fmtRp(inv.totalValue||0)+'</td><td><select class="status-sel '+status+'" data-inv="'+escapeHtml(inv.invoiceNo)+'"><option value="pending"'+(status==='pending'?' selected':'')+'>Belum Ditentukan</option><option value="today"'+(status==='today'?' selected':'')+'>Kirim Hari Ini</option><option value="cod"'+(status==='cod'?' selected':'')+'>COD</option></select></td></tr>';
+    const checked=selectedInvoices.has(inv.invoiceNo)?' checked':'';
+    return '<tr><td><input type="checkbox" class="row-chk" data-inv="'+escapeHtml(inv.invoiceNo)+'"'+checked+'></td><td>'+(i+1)+'</td><td style="font-size:11px;">'+escapeHtml(inv.invoiceDate||'-')+'</td><td>'+escapeHtml(inv.invoiceNo)+'</td><td>'+outletLabel+'</td><td class="num">'+fmtRp(inv.totalValue||0)+'</td><td><select class="status-sel '+status+'" data-inv="'+escapeHtml(inv.invoiceNo)+'"><option value="pending"'+(status==='pending'?' selected':'')+'>Belum Ditentukan</option><option value="today"'+(status==='today'?' selected':'')+'>Kirim Hari Ini</option><option value="cod"'+(status==='cod'?' selected':'')+'>COD</option></select></td></tr>';
   }).join('');
   body.querySelectorAll('.status-sel').forEach(sel=>{
     sel.addEventListener('change',async()=>{
@@ -419,7 +455,62 @@ function renderInvoiceTable(){
       }
     });
   });
+  body.querySelectorAll('.row-chk').forEach(chk=>{
+    chk.addEventListener('change',()=>{
+      if(chk.checked)selectedInvoices.add(chk.dataset.inv);
+      else selectedInvoices.delete(chk.dataset.inv);
+      updateBulkBar();
+    });
+  });
+  document.getElementById('selectAllChk').checked=list.length>0&&list.every(inv=>selectedInvoices.has(inv.invoiceNo));
+  document.getElementById('headerChk').checked=document.getElementById('selectAllChk').checked;
+  updateBulkBar();
 }
+
+function updateBulkBar(){
+  const n=selectedInvoices.size;
+  document.getElementById('bulkActions').style.display=n?'flex':'none';
+  document.getElementById('bulkCount').textContent=n+' dipilih';
+}
+
+function currentVisibleInvoiceNos(){
+  let list=Object.values(invoicesLocal);
+  if(statusFilter!=='all')list=list.filter(inv=>(inv.status||'pending')===statusFilter);
+  return list.map(inv=>inv.invoiceNo);
+}
+
+function toggleSelectAll(checked){
+  const visible=currentVisibleInvoiceNos();
+  if(checked)visible.forEach(no=>selectedInvoices.add(no));
+  else visible.forEach(no=>selectedInvoices.delete(no));
+  renderInvoiceTable();
+}
+document.getElementById('selectAllChk').addEventListener('change',e=>toggleSelectAll(e.target.checked));
+document.getElementById('headerChk').addEventListener('change',e=>toggleSelectAll(e.target.checked));
+
+async function bulkSetStatus(newStatus){
+  if(!selectedInvoices.size){showToast('Belum ada invoice yang dipilih.');return;}
+  const invoiceNos=[...selectedInvoices];
+  invoiceNos.forEach(no=>{if(invoicesLocal[no])invoicesLocal[no].status=newStatus;});
+  renderInvoiceTable();
+  if(fbConnected){
+    showToast('Menyimpan status untuk '+invoiceNos.length+' invoice…');
+    try{
+      for(let i=0;i<invoiceNos.length;i+=400){
+        const chunk=invoiceNos.slice(i,i+400);
+        const batch=db.batch();
+        chunk.forEach(no=>batch.update(db.collection('invoices').doc(sanitizeDocId(no)),{status:newStatus}));
+        await batch.commit();
+      }
+      showToast('✅ '+invoiceNos.length+' invoice ditandai "'+({today:'Kirim Hari Ini',cod:'COD',pending:'Belum Ditentukan'}[newStatus])+'".');
+    }catch(err){console.error(err);showToast('Gagal menyimpan sebagian: '+err.message);}
+  }
+  selectedInvoices.clear();
+  renderInvoiceTable();
+}
+document.getElementById('bulkTodayBtn').addEventListener('click',()=>bulkSetStatus('today'));
+document.getElementById('bulkCodBtn').addEventListener('click',()=>bulkSetStatus('cod'));
+document.getElementById('bulkResetBtn').addEventListener('click',()=>bulkSetStatus('pending'));
 
 /* ===== Balancing Algorithm ===== */
 function nearestNeighborOrder(points){
