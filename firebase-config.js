@@ -11,13 +11,17 @@
    nilai-nilai ini.
    ============================================================ */
 const firebaseConfig = {
-  apiKey: "GANTI_DENGAN_API_KEY_ANDA",
-  authDomain: "GANTI_PROJECT_ID.firebaseapp.com",
-  projectId: "GANTI_PROJECT_ID",
-  storageBucket: "GANTI_PROJECT_ID.appspot.com",
-  messagingSenderId: "GANTI_SENDER_ID",
-  appId: "GANTI_APP_ID"
+  apiKey: "AIzaSyA6g9q_Eq0jN91L91EeqNJ99OMDBEkNVLE",
+  authDomain: "swikie-operasional.firebaseapp.com",
+  projectId: "swikie-operasional",
+  storageBucket: "swikie-operasional.firebasestorage.app",
+  messagingSenderId: "586748479988",
+  appId: "1:586748479988:web:37c11cbffc2e55b04e51a1"
 };
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);`
+
 
 /* ============================================================
    Jangan ubah apa pun di bawah baris ini.
