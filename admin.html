@@ -13,7 +13,7 @@
 <style>
 :root{--ink:#0E2A3E;--ink-2:#173B54;--surface:#F5F6F3;--surface-2:#FFFFFF;--line:#DEE3DF;--muted:#5E6E71;--go:#1F8A4C;--go-dark:#186B3B;--live:#FF8A1E;--danger:#C64B3C;--v-de:#1565C0;--v-en:#E07B39;--v-t1:#2E9E56;--v-t2:#B03A5B;--v-t3:#7B1FA2;--v-t4:#00838F;--radius:14px;--font-display:'Space Grotesk',system-ui,sans-serif;--font-body:'Inter',system-ui,-apple-system,sans-serif;}
 *{box-sizing:border-box;}body{margin:0;font-family:var(--font-body);background:var(--surface);color:var(--ink);}
-.wrap{max-width:800px;margin:0 auto;padding:20px 16px 80px;}
+.wrap{max-width:900px;margin:0 auto;padding:20px 16px 80px;}
 header h1{font-family:var(--font-display);font-size:20px;margin:0 0 4px;}header p{margin:0;color:var(--muted);font-size:13px;}
 .card{background:var(--surface-2);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(14,42,62,0.08);}
 .card h2{font-family:var(--font-display);font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px;}
@@ -28,7 +28,7 @@ input:focus{border-color:var(--ink-2);}
 .btn-danger{background:var(--surface);color:var(--danger);border:1.5px solid var(--line);}
 .btn-sm{padding:7px 12px;font-size:12px;width:auto;}
 table{width:100%;border-collapse:collapse;font-size:12.5px;}
-th{text-align:left;color:var(--muted);font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1.5px solid var(--line);}
+th{text-align:left;color:var(--muted);font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1.5px solid var(--line);position:sticky;top:0;background:var(--surface-2);}
 td{padding:8px;border-bottom:1px solid var(--surface);vertical-align:middle;}
 td.num{text-align:right;font-variant-numeric:tabular-nums;}
 .rm{border:none;background:none;color:var(--danger);cursor:pointer;font-size:14px;padding:2px 6px;}
@@ -83,6 +83,13 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 .modal-box .btn-submit{background:var(--ink-2);color:#fff;}
 #mainContent{display:none;}
 #mainContent.unlocked{display:block;}
+/* Invoice table */
+.status-sel{font-size:11px;border-radius:6px;border:1.5px solid var(--line);padding:5px 6px;font-weight:600;background:var(--surface-2);}
+.status-sel.today{border-color:var(--go);color:var(--go-dark);background:#EAF7EE;}
+.status-sel.cod{border-color:var(--live);color:#8A5A16;background:#FDF3E7;}
+.filter-chips{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.fchip{border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:20px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;}
+.fchip.active{background:var(--ink-2);color:#fff;border-color:var(--ink-2);}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:999;transition:transform .25s;box-shadow:0 4px 16px rgba(0,0,0,0.3);}
 #toast.show{transform:translateX(-50%) translateY(0);}
 </style>
@@ -90,43 +97,53 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 <body>
 <div class="wrap" id="mainContent">
 <div class="nav-row"><button id="navMap">🗺️ Kembali ke Peta</button><button id="navMuat">📦 Muat Barang</button><button id="navDashboard">📊 Dashboard</button></div>
-<header><h1>🧾 Rencana Pengantaran</h1><p>Upload invoice, pilih kendaraan, bagi otomatis, publikasikan ke tim — tersimpan di Firebase, aman untuk dipakai banyak orang bersamaan.</p></header>
+<header><h1>🧾 Rencana Pengantaran</h1><p>Upload extract invoice, pilih mana yang dikirim hari ini / COD, bagi ke kendaraan, publikasikan ke tim.</p></header>
 
 <div class="conn-status" id="connStatus"><div class="dot"></div><span id="connStatusText">Menghubungkan ke Firebase…</span></div>
 
 <div class="card">
+<h2>📤 Upload Extract Secondary Sale Data <span class="badge" id="countInvoices">0 invoice</span></h2>
+<div class="hint" style="margin-top:0;">Upload langsung file extract dari sistem (kolom: INVNumber, INVDate, Outlet, Outlet Name, SKUCode, ProductName, Case/Dozen/Pieces, TotalQuantity(PCS), PriceCase, GSV, Discount, Tax, Net). Ini <b>satu-satunya sumber data invoice</b> — baris dengan No Invoice + Kode SKU yang sama akan menimpa data lama, yang berbeda akan menambah baru.</div>
+<div class="upload-zone" id="uploadZone"><input type="file" id="fileInput" accept=".xlsx,.xls"><div class="icon">📤</div><div class="main">Klik atau tarik file extract ke sini</div><div class="sub">File .xlsx dari sistem, tanpa perlu diubah formatnya</div></div>
+<div id="uploadSummary"></div>
+<button class="btn btn-go" id="publishInvoicesBtn" style="margin-top:12px;">🚀 Publikasikan Data Invoice ke Firebase</button>
+<div class="publish-status" id="publishInvoicesStatus"></div>
+</div>
+
+<div class="card">
+<h2>📋 Daftar Invoice <span class="badge" id="countInvoiceRows">0</span></h2>
+<div class="hint" style="margin-top:0;margin-bottom:10px;">Pilih status tiap invoice: <b>Kirim Hari Ini</b> (masuk rencana pengantaran & dibagi ke kendaraan) atau <b>COD</b> (perlu disiapkan untuk diambil terpisah, tidak ikut dibagi ke mobil).</div>
+<div class="filter-chips" id="statusFilterChips">
+  <div class="fchip active" data-f="all">Semua</div>
+  <div class="fchip" data-f="pending">Belum Ditentukan</div>
+  <div class="fchip" data-f="today">Kirim Hari Ini</div>
+  <div class="fchip" data-f="cod">COD</div>
+</div>
+<div style="overflow-x:auto;max-height:480px;overflow-y:auto;">
+<table><thead><tr><th>No.</th><th>Tgl Invoice</th><th>No Invoice</th><th>Outlet</th><th class="num">Nilai</th><th>Status</th></tr></thead><tbody id="invoiceTableBody"></tbody></table>
+</div>
+<div class="empty-row" id="invoiceTableEmpty">Belum ada data invoice. Upload & publikasikan extract di atas dulu.</div>
+</div>
+
+<div class="card">
 <h2>🚛 Pilih Kendaraan Aktif</h2>
-<div class="hint" style="margin-top:0;margin-bottom:10px;">Centang kendaraan yang akan dipakai hari ini. Harga per karton: <b>Rp <span id="hargaKartonDisplay">250.000</span></b></div>
+<div class="hint" style="margin-top:0;margin-bottom:10px;">Centang kendaraan yang akan dipakai hari ini.</div>
 <div class="veh-grid" id="vehGrid"></div>
 </div>
 
 <div class="card">
-<h2>📤 Upload Invoice (Excel) <span class="badge" id="countInvoice">0</span></h2>
-<div class="hint" style="margin-top:0;">Kolom: <b>Tanggal Faktur</b>, <b>No Invoice</b>, <b>Kode Outlet</b>, <b>Nilai Faktur</b>. Duplikat (CC + No Invoice sama) otomatis ditimpa.</div>
-<button class="btn btn-outline btn-sm" id="downloadTemplateBtn" style="margin:8px 0;">⬇ Unduh Template Excel</button>
-<div class="upload-zone" id="uploadZone"><input type="file" id="fileInput" accept=".xlsx,.xls"><div class="icon">📤</div><div class="main">Klik atau tarik file Excel ke sini</div><div class="sub">Upload baru: duplikat ditimpa, invoice baru ditambahkan</div></div>
-<div id="uploadSummary"></div>
-<div class="divider"></div>
-<div style="overflow-x:auto;">
-<table><thead><tr><th>Outlet</th><th>No Invoice</th><th>Tanggal</th><th class="num">Nilai</th><th class="num">Est. Karton</th><th></th></tr></thead><tbody id="invoiceBody"></tbody></table>
-</div>
-<div class="empty-row" id="invoiceEmpty">Belum ada invoice. Upload file Excel di atas.</div>
-</div>
-
-<div class="card">
-<h2>⚖️ Pembagian Kendaraan</h2>
+<h2>⚖️ Pembagian Kendaraan (Invoice "Kirim Hari Ini")</h2>
 <button class="btn btn-primary" id="balanceBtn">Bagi Otomatis ke Kendaraan Aktif</button>
-<div class="hint">Logika: outlet sama tidak dipisah → kapasitas karton dijaga → nilai invoice diratakan → outlet berdekatan dikelompokkan.</div>
+<div class="hint">Logika: outlet sama tidak dipisah → kapasitas karton dijaga (estimasi dari qty pcs ÷ pcs-per-karton) → nilai invoice diratakan → outlet berdekatan dikelompokkan.</div>
 <div class="vgrid" id="vehicleResults"></div>
 </div>
 
 <div class="card" id="exportCard" style="display:none;">
-<h2>🚀 Publikasikan ke Tim</h2>
-<button class="btn btn-go" id="publishBtn">🚀 Publikasikan Rencana ke Firebase</button>
-<div class="publish-status" id="publishStatus"></div>
+<h2>🚀 Publikasikan Rencana ke Tim</h2>
+<button class="btn btn-go" id="publishPlanBtn">🚀 Publikasikan Rencana ke Firebase</button>
+<div class="publish-status" id="publishPlanStatus"></div>
 <div class="divider"></div>
 <h2 style="font-size:14px;">📱 Link untuk Tim</h2>
-<div class="hint" style="margin-top:0;">Bagikan link ini ke driver, checker gudang, dan helper via WhatsApp. Tidak perlu token apa pun — tinggal buka dan langsung bisa dipakai.</div>
 <div class="team-link-box" id="teamLinkBox"></div>
 </div>
 
@@ -147,35 +164,20 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 </div>
 
 <script>
-/* ===== Password gate (shared with index.html / dashboard.html) ===== */
+/* ===== Password gate ===== */
 const ADMIN_PW_HASH='0e86e8f45f7f50d4038d9cf73e526ad31c6ffde75a188bc68aa1cb48a7b0271c';
-async function sha256Hex(str){
-  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
-  return[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
-}
+async function sha256Hex(str){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));return[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');}
 function isUnlocked(){return sessionStorage.getItem('swikie_unlocked')==='1';}
 function setUnlocked(){sessionStorage.setItem('swikie_unlocked','1');}
-
 const pwModal=document.getElementById('pwModal'),pwInput=document.getElementById('pwInput'),pwErr=document.getElementById('pwErr');
-if(isUnlocked()){
-  document.getElementById('mainContent').classList.add('unlocked');
-}else{
-  pwModal.classList.add('show');
-  setTimeout(()=>pwInput.focus(),150);
-}
+if(isUnlocked()){document.getElementById('mainContent').classList.add('unlocked');}
+else{pwModal.classList.add('show');setTimeout(()=>pwInput.focus(),150);}
 document.getElementById('pwCancel').addEventListener('click',()=>{window.location.href='./index.html';});
 async function submitPw(){
-  const val=pwInput.value;
-  if(!val){pwErr.textContent='Password tidak boleh kosong.';return;}
+  const val=pwInput.value;if(!val){pwErr.textContent='Password tidak boleh kosong.';return;}
   const hash=await sha256Hex(val);
-  if(hash===ADMIN_PW_HASH){
-    setUnlocked();
-    pwModal.classList.remove('show');
-    document.getElementById('mainContent').classList.add('unlocked');
-  }else{
-    pwErr.textContent='Password salah. Coba lagi.';
-    pwInput.value='';pwInput.focus();
-  }
+  if(hash===ADMIN_PW_HASH){setUnlocked();pwModal.classList.remove('show');document.getElementById('mainContent').classList.add('unlocked');}
+  else{pwErr.textContent='Password salah. Coba lagi.';pwInput.value='';pwInput.focus();}
 }
 document.getElementById('pwSubmit').addEventListener('click',submitPw);
 pwInput.addEventListener('keydown',e=>{if(e.key==='Enter')submitPw();});
@@ -192,45 +194,46 @@ const VEHICLES_DEF = [
   {id:'t3',name:'Traga 3',capacity:250,hex:'#7B1FA2'},
   {id:'t4',name:'Traga 4',capacity:250,hex:'#00838F'}
 ];
-const HARGA_PER_KARTON = 250000;
-let OUTLETS = [];
-let invoices = JSON.parse(localStorage.getItem('sw_invoices') || '[]');
+let OUTLETS=[],outletByCc={},SKU_MASTER={skuInfo:{},barcodeToSku:{}};
+let invoicesLocal={}; // invoiceNo -> {invoiceNo, invoiceDate, outletCode, outletNameExtract, lines:[...], totalValue, status}
 let activeVehicles = JSON.parse(localStorage.getItem('sw_active_vehicles') || '["de","en","t1","t2"]');
 let vehiclePlan = JSON.parse(localStorage.getItem('sw_vehicle_plan') || 'null');
 let manuallyAdjusted = false;
-
-/* ===== Connection status ===== */
-async function initConnection(){
-  const el = document.getElementById('connStatus'), txt = document.getElementById('connStatusText');
-  try{
-    if(typeof FIREBASE_CONFIGURED==='undefined'){
-      el.className='conn-status err'; txt.textContent='firebase-config.js gagal dimuat — cek apakah file itu ada di folder yang sama di GitHub.';
-      return false;
-    }
-    if(!FIREBASE_CONFIGURED){
-      el.className='conn-status err'; txt.textContent='Firebase belum dikonfigurasi. Edit firebase-config.js.';
-      return false;
-    }
-    const ok = await firebaseReady;
-    if(ok){ el.className='conn-status ok'; txt.textContent='Terhubung ke Firebase.'; return true; }
-    el.className='conn-status err'; txt.textContent='Gagal terhubung ke Firebase.'; return false;
-  }catch(err){
-    console.error('initConnection error:',err);
-    el.className='conn-status err'; txt.textContent='Error: '+err.message;
-    return false;
-  }
-}
-
-fetch('./outlets.json').then(r=>r.ok?r.json():Promise.reject()).then(d=>{OUTLETS=d;renderInvoices();}).catch(()=>showToast('Gagal memuat outlets.json'));
+let statusFilter='all';
+let fbConnected=false;
 
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtRp(n){return'Rp '+Number(n).toLocaleString('id-ID');}
-function estKarton(invoice){return Math.max(1,Math.ceil(invoice/HARGA_PER_KARTON));}
-function saveInvoices(){localStorage.setItem('sw_invoices',JSON.stringify(invoices));}
-function saveActiveVeh(){localStorage.setItem('sw_active_vehicles',JSON.stringify(activeVehicles));}
-function savePlan(){localStorage.setItem('sw_vehicle_plan',JSON.stringify(vehiclePlan));}
 let toastTimer;function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3600);}
 function haversine(lat1,lon1,lat2,lon2){const R=6371,toRad=d=>d*Math.PI/180,dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1),a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+function last5(cc){cc=String(cc||'');return cc.length>5?cc.slice(-5):cc;}
+
+/* ===== Connection & boot ===== */
+async function initConnection(){
+  const el=document.getElementById('connStatus'),txt=document.getElementById('connStatusText');
+  try{
+    if(typeof FIREBASE_CONFIGURED==='undefined'){el.className='conn-status err';txt.textContent='firebase-config.js gagal dimuat.';return false;}
+    if(!FIREBASE_CONFIGURED){el.className='conn-status err';txt.textContent='Firebase belum dikonfigurasi.';return false;}
+    const ok=await firebaseReady;
+    if(ok){el.className='conn-status ok';txt.textContent='Terhubung ke Firebase.';return true;}
+    el.className='conn-status err';txt.textContent='Gagal terhubung ke Firebase.';return false;
+  }catch(err){console.error(err);el.className='conn-status err';txt.textContent='Error: '+err.message;return false;}
+}
+
+async function boot(){
+  fbConnected=await initConnection();
+  try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});}catch(e){}
+  try{const r=await fetch('./sku_master.json');SKU_MASTER=await r.json();}catch(e){console.error('Gagal memuat sku_master.json:',e);}
+  if(fbConnected){
+    try{
+      const snap=await db.collection('invoices').get();
+      snap.forEach(doc=>{invoicesLocal[doc.id]=doc.data();});
+      renderInvoiceTable();
+    }catch(e){console.error('Gagal memuat invoices:',e);}
+  }
+  renderVehGrid();
+  if(vehiclePlan){renderVehicles();document.getElementById('exportCard').style.display='block';renderTeamLinks();}
+}
 
 /* ===== Vehicle Selection ===== */
 const vehGrid=document.getElementById('vehGrid');
@@ -243,21 +246,13 @@ function renderVehGrid(){
     cb.addEventListener('change',()=>{
       if(cb.checked&&!activeVehicles.includes(cb.value))activeVehicles.push(cb.value);
       else activeVehicles=activeVehicles.filter(x=>x!==cb.value);
-      saveActiveVeh();renderVehGrid();
+      localStorage.setItem('sw_active_vehicles',JSON.stringify(activeVehicles));
+      renderVehGrid();
     });
   });
 }
-renderVehGrid();
 
-/* ===== Template Download ===== */
-document.getElementById('downloadTemplateBtn').addEventListener('click',()=>{
-  const ws=XLSX.utils.aoa_to_sheet([['Tanggal Faktur','No Invoice','Kode Outlet','Nilai Faktur'],['2026-07-25','INV-000123','917102300301373064',150000],['2026-07-25','INV-000124','917102100301316052',275000]]);
-  ws['!cols']=[{wch:14},{wch:16},{wch:22},{wch:14}];
-  ['C2','C3'].forEach(a=>{if(ws[a]){ws[a].t='s';ws[a].z='@';}});
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Template');XLSX.writeFile(wb,'template_invoice.xlsx');
-});
-
-/* ===== Excel Upload ===== */
+/* ===== Excel Upload (extract) ===== */
 const uploadZone=document.getElementById('uploadZone'),fileInput=document.getElementById('fileInput');
 uploadZone.addEventListener('click',()=>fileInput.click());
 ['dragover','dragenter'].forEach(ev=>uploadZone.addEventListener(ev,e=>{e.preventDefault();uploadZone.classList.add('drag');}));
@@ -266,59 +261,165 @@ uploadZone.addEventListener('drop',e=>{if(e.dataTransfer.files.length)handleFile
 fileInput.addEventListener('change',e=>{if(e.target.files.length)handleFile(e.target.files[0]);fileInput.value='';});
 
 function normalizeKey(k){return String(k).toLowerCase().replace(/[^a-z0-9]/g,'');}
+function findHeaderRow(rows){
+  // header baris biasanya berisi "INVNumber"/"SKUCode" — cari barisnya, bukan asumsikan baris 1
+  for(let i=0;i<Math.min(10,rows.length);i++){
+    const norm=rows[i].map(c=>normalizeKey(c||''));
+    if(norm.includes('invnumber')&&norm.includes('skucode'))return i;
+  }
+  return 0;
+}
 function handleFile(file){
-  if(!OUTLETS.length){showToast('Data outlet belum termuat.');return;}
+  if(!OUTLETS.length){showToast('Data outlet belum termuat, coba lagi sesaat lagi.');return;}
   const reader=new FileReader();
   reader.onload=evt=>{
     try{
       const data=new Uint8Array(evt.target.result);const wb=XLSX.read(data,{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
-      processUploadedRows(rows);
-    }catch(err){showToast('Gagal membaca file.');}
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
+      const hIdx=findHeaderRow(aoa);
+      const headers=aoa[hIdx].map(h=>String(h||'').trim());
+      const rows=aoa.slice(hIdx+1).map(r=>{const o={};headers.forEach((h,i)=>o[h]=r[i]);return o;});
+      processExtract(rows);
+    }catch(err){console.error(err);showToast('Gagal membaca file: '+err.message);}
   };reader.readAsArrayBuffer(file);
 }
-function processUploadedRows(rows){
+
+function processExtract(rows){
   const summaryBox=document.getElementById('uploadSummary');
-  if(!rows.length){summaryBox.innerHTML='<div class="summary-box summary-warn">File kosong.</div>';return;}
+  if(!rows.length){summaryBox.innerHTML='<div class="summary-box summary-warn">File kosong atau format tidak dikenali.</div>';return;}
   const hk=Object.keys(rows[0]);
-  const findKey=patterns=>hk.find(h=>patterns.some(p=>normalizeKey(h).includes(p)));
-  const kCode=findKey(['kodeoutlet','kode','cc']);const kInvNo=findKey(['noinvoice','invoiceno','nomorinvoice','nomor']);
-  const kValue=findKey(['nilaifaktur','nilaiinvoice','nilai','invoicevalue','value','jumlah']);
-  const kDate=findKey(['tanggalfaktur','tanggalinvoice','tanggal','date','tgl']);
-  if(!kCode||!kValue){summaryBox.innerHTML='<div class="summary-box summary-warn"><b>Kolom tidak dikenali.</b> Pastikan ada kolom Kode Outlet dan Nilai Faktur.</div>';return;}
-  let added=0,updated=0;const notFound=[],invalidVal=[];
+  const findKey=patterns=>hk.find(h=>patterns.some(p=>normalizeKey(h)===p||normalizeKey(h).includes(p)));
+  const kInv=findKey(['invnumber']);
+  const kDate=findKey(['invdate']);
+  const kOutlet=findKey(['outlet']);
+  const kOutletName=findKey(['outletname']);
+  const kSku=findKey(['skucode']);
+  const kSkuName=findKey(['productname']);
+  const kCase=findKey(['case']);
+  const kDozen=findKey(['dozen']);
+  const kPieces=findKey(['pieces']);
+  const kTotalPcs=findKey(['totalquantitypcs','totalquantity']);
+  const kPriceCase=findKey(['pricecase']);
+  const kGsv=findKey(['gsv']);
+  const kDiscount=findKey(['discount']);
+  const kTax=findKey(['tax']);
+  const kNet=findKey(['net']);
+
+  if(!kInv||!kSku||!kOutlet){
+    summaryBox.innerHTML='<div class="summary-box summary-warn"><b>Kolom tidak dikenali.</b> Pastikan file extract memiliki kolom INVNumber, Outlet, dan SKUCode.</div>';return;
+  }
+
+  let newInvoices=0,updatedInvoices=0,newLines=0,updatedLines=0,skippedRows=0;
+  const notFoundOutlets=new Set();
+
   rows.forEach(r=>{
-    const codeRaw=String(r[kCode]||'').trim();if(!codeRaw)return;
-    const outlet=OUTLETS.find(o=>o.cc===codeRaw);
-    const val=Number(String(r[kValue]).replace(/[^0-9.\-]/g,''));
-    if(!outlet){notFound.push(codeRaw);return;}
-    if(!val||val<=0){invalidVal.push(codeRaw);return;}
-    const invNo=kInvNo?String(r[kInvNo]||'').trim():'';
-    const invDate=kDate?String(r[kDate]||'').trim():'';
-    const dupKey=codeRaw+'|'+invNo;
-    const existing=invoices.findIndex(e=>e.cc+'|'+e.invoiceNo===dupKey);
-    if(existing>=0){invoices[existing].invoice=val;invoices[existing].name=outlet.n;invoices[existing].invoiceDate=invDate;updated++;}
-    else{invoices.push({id:Date.now()+Math.random().toString(36).slice(2,7),cc:outlet.cc,name:outlet.n,invoice:val,invoiceNo:invNo,invoiceDate:invDate});added++;}
+    const invNo=String(r[kInv]||'').trim();
+    const skuCode=String(r[kSku]||'').trim();
+    const outletCode=String(r[kOutlet]||'').trim();
+    if(!invNo||!skuCode||!outletCode){skippedRows++;return;}
+
+    if(!outletByCc[outletCode])notFoundOutlets.add(outletCode);
+
+    const line={
+      skuCode,
+      skuName:kSkuName?String(r[kSkuName]||'').trim():skuCode,
+      caseQty:Number(r[kCase])||0,
+      dozenQty:Number(r[kDozen])||0,
+      piecesQty:Number(r[kPieces])||0,
+      totalPcs:Number(r[kTotalPcs])||0,
+      priceCase:Number(r[kPriceCase])||0,
+      gsv:Number(r[kGsv])||0,
+      discount:Number(r[kDiscount])||0,
+      tax:Number(r[kTax])||0,
+      net:Number(r[kNet])||0
+    };
+
+    let inv=invoicesLocal[invNo];
+    if(!inv){
+      inv={invoiceNo:invNo,invoiceDate:kDate?String(r[kDate]||'').trim():'',outletCode,outletNameExtract:kOutletName?String(r[kOutletName]||'').trim():'',lines:[],status:'pending'};
+      invoicesLocal[invNo]=inv;
+      newInvoices++;
+    }else{
+      updatedInvoices++;
+      if(kDate)inv.invoiceDate=String(r[kDate]||'').trim()||inv.invoiceDate;
+      inv.outletCode=outletCode;
+      if(kOutletName)inv.outletNameExtract=String(r[kOutletName]||'').trim()||inv.outletNameExtract;
+    }
+    const idx=inv.lines.findIndex(l=>l.skuCode===skuCode);
+    if(idx>=0){inv.lines[idx]=line;updatedLines++;}else{inv.lines.push(line);newLines++;}
+    inv.totalValue=inv.lines.reduce((s,l)=>s+l.net,0);
   });
-  saveInvoices();vehiclePlan=null;manuallyAdjusted=false;localStorage.removeItem('sw_vehicle_plan');
-  document.getElementById('vehicleResults').innerHTML='';document.getElementById('exportCard').style.display='none';
-  renderInvoices();
-  let html='<div class="summary-box '+(notFound.length||invalidVal.length?'summary-warn':'summary-ok')+'"><b>'+added+' baru ditambahkan, '+updated+' duplikat ditimpa</b> dari '+rows.length+' baris.';
-  if(notFound.length)html+='<br>⚠ '+notFound.length+' kode outlet tidak ditemukan:<div class="summary-list">'+notFound.slice(0,50).map(escapeHtml).join(', ')+'</div>';
-  if(invalidVal.length)html+='<br>⚠ '+invalidVal.length+' nilai tidak valid.';
-  html+='</div>';summaryBox.innerHTML=html;
-  showToast(added+' invoice baru, '+updated+' ditimpa.');
+
+  let html='<div class="summary-box '+(notFoundOutlets.size?'summary-warn':'summary-ok')+'"><b>'+newInvoices+' invoice baru, '+updatedInvoices+' invoice diperbarui</b> ('+newLines+' baris SKU baru, '+updatedLines+' ditimpa).';
+  if(skippedRows)html+='<br>⚠ '+skippedRows+' baris dilewati (data tidak lengkap).';
+  if(notFoundOutlets.size)html+='<br>⚠ '+notFoundOutlets.size+' kode outlet tidak ditemukan di outlets.json (nama dari extract dipakai sebagai cadangan):<div class="summary-list">'+[...notFoundOutlets].slice(0,30).map(escapeHtml).join(', ')+'</div>';
+  html+='</div>';
+  summaryBox.innerHTML=html;
+  document.getElementById('countInvoices').textContent=Object.keys(invoicesLocal).length+' invoice';
+  renderInvoiceTable();
+  showToast(newInvoices+' invoice baru, '+updatedInvoices+' diperbarui.');
 }
 
+/* ===== Publish invoices to Firestore (batched) ===== */
+document.getElementById('publishInvoicesBtn').addEventListener('click',async()=>{
+  if(!fbConnected){showToast('Belum terhubung ke Firebase.');return;}
+  const invoiceNos=Object.keys(invoicesLocal);
+  if(!invoiceNos.length){showToast('Belum ada data invoice untuk dipublikasikan.');return;}
+  const btn=document.getElementById('publishInvoicesBtn');btn.disabled=true;
+  const statusEl=document.getElementById('publishInvoicesStatus');
+  statusEl.className='publish-status show wait';statusEl.textContent='Mempublikasikan…';
+  try{
+    for(let i=0;i<invoiceNos.length;i+=400){
+      const chunk=invoiceNos.slice(i,i+400);
+      const batch=db.batch();
+      chunk.forEach(invNo=>{
+        const docId=sanitizeDocId(invNo);
+        batch.set(db.collection('invoices').doc(docId),invoicesLocal[invNo],{merge:false});
+      });
+      await batch.commit();
+    }
+    statusEl.className='publish-status show ok';statusEl.textContent='✅ '+invoiceNos.length+' invoice berhasil dipublikasikan ke Firebase.';
+    showToast('Data invoice berhasil dipublikasikan!');
+  }catch(err){console.error(err);statusEl.className='publish-status show err';statusEl.textContent='❌ '+err.message;}
+  finally{btn.disabled=false;}
+});
+
 /* ===== Invoice Table ===== */
-function renderInvoices(){
-  document.getElementById('countInvoice').textContent=invoices.length;
-  document.getElementById('invoiceEmpty').style.display=invoices.length?'none':'block';
-  const body=document.getElementById('invoiceBody');
-  body.innerHTML=invoices.map(e=>'<tr><td>'+escapeHtml(e.name)+'<div style="color:var(--muted);font-size:10.5px;">'+e.cc+'</div></td><td>'+escapeHtml(e.invoiceNo||'-')+'</td><td style="font-size:11.5px;">'+escapeHtml(e.invoiceDate||'-')+'</td><td class="num">'+fmtRp(e.invoice)+'</td><td class="num">'+estKarton(e.invoice)+'</td><td><button class="rm" data-id="'+e.id+'">✕</button></td></tr>').join('');
-  body.querySelectorAll('.rm').forEach(b=>b.addEventListener('click',()=>{invoices=invoices.filter(e=>e.id!==b.dataset.id);saveInvoices();renderInvoices();}));
+document.querySelectorAll('#statusFilterChips .fchip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    statusFilter=chip.dataset.f;
+    document.querySelectorAll('#statusFilterChips .fchip').forEach(c=>c.classList.toggle('active',c===chip));
+    renderInvoiceTable();
+  });
+});
+
+function renderInvoiceTable(){
+  let list=Object.values(invoicesLocal);
+  document.getElementById('countInvoiceRows').textContent=list.length;
+  if(statusFilter!=='all')list=list.filter(inv=>(inv.status||'pending')===statusFilter);
+  list.sort((a,b)=>(a.invoiceDate||'').localeCompare(b.invoiceDate||'')||a.invoiceNo.localeCompare(b.invoiceNo));
+
+  const body=document.getElementById('invoiceTableBody');
+  document.getElementById('invoiceTableEmpty').style.display=list.length?'none':'block';
+  body.innerHTML=list.map((inv,i)=>{
+    const outlet=outletByCc[inv.outletCode];
+    const outletLabel=last5(inv.outletCode)+' · '+escapeHtml(outlet?outlet.n:(inv.outletNameExtract||'?'));
+    const status=inv.status||'pending';
+    return '<tr><td>'+(i+1)+'</td><td style="font-size:11px;">'+escapeHtml(inv.invoiceDate||'-')+'</td><td>'+escapeHtml(inv.invoiceNo)+'</td><td>'+outletLabel+'</td><td class="num">'+fmtRp(inv.totalValue||0)+'</td><td><select class="status-sel '+status+'" data-inv="'+escapeHtml(inv.invoiceNo)+'"><option value="pending"'+(status==='pending'?' selected':'')+'>Belum Ditentukan</option><option value="today"'+(status==='today'?' selected':'')+'>Kirim Hari Ini</option><option value="cod"'+(status==='cod'?' selected':'')+'>COD</option></select></td></tr>';
+  }).join('');
+  body.querySelectorAll('.status-sel').forEach(sel=>{
+    sel.addEventListener('change',async()=>{
+      const invNo=sel.dataset.inv;
+      invoicesLocal[invNo].status=sel.value;
+      sel.className='status-sel '+sel.value;
+      if(fbConnected){
+        try{await db.collection('invoices').doc(sanitizeDocId(invNo)).update({status:sel.value});}
+        catch(err){console.error(err);showToast('Gagal menyimpan status: '+err.message);}
+      }
+    });
+  });
 }
-renderInvoices();
 
 /* ===== Balancing Algorithm ===== */
 function nearestNeighborOrder(points){
@@ -327,17 +428,29 @@ function nearestNeighborOrder(points){
   rem.forEach((p,i)=>{const d=haversine(last.lat,last.lon,p.lat,p.lon);if(d<bd){bd=d;bi=i;}});
   ord.push(rem.splice(bi,1)[0]);}return ord;
 }
-function balanceToVehicles(invoiceList,vehicleIds){
-  const groups={};
-  invoiceList.forEach(inv=>{
-    const outlet=OUTLETS.find(o=>o.cc===inv.cc);if(!outlet)return;
-    if(!groups[inv.cc])groups[inv.cc]={cc:inv.cc,name:inv.name,lat:outlet.lat,lon:outlet.lon,totalInv:0,totalKarton:0,invoices:[]};
-    groups[inv.cc].totalInv+=inv.invoice;
-    groups[inv.cc].totalKarton+=estKarton(inv.invoice);
-    groups[inv.cc].invoices.push(inv);
+function estimateInvoiceKarton(inv){
+  let totalCase=0;
+  inv.lines.forEach(line=>{
+    const info=SKU_MASTER.skuInfo&&SKU_MASTER.skuInfo[line.skuCode];
+    const pcPerCs=info&&info.p;
+    if(pcPerCs&&line.totalPcs)totalCase+=line.totalPcs/pcPerCs;
+    else totalCase+=(line.caseQty||1);
   });
-  let outletGroups=Object.values(groups);
-  outletGroups=nearestNeighborOrder(outletGroups);
+  return Math.max(1,Math.ceil(totalCase));
+}
+function balanceToVehicles(todayInvoices,vehicleIds){
+  const groups={};
+  todayInvoices.forEach(inv=>{
+    const outlet=outletByCc[inv.outletCode];
+    const lat=outlet?outlet.lat:null,lon=outlet?outlet.lon:null;
+    if(lat==null||lon==null)return; // tidak bisa dipetakan tanpa koordinat
+    if(!groups[inv.outletCode])groups[inv.outletCode]={cc:inv.outletCode,lat,lon,totalInv:0,totalKarton:0,invoices:[]};
+    const karton=estimateInvoiceKarton(inv);
+    groups[inv.outletCode].totalInv+=(inv.totalValue||0);
+    groups[inv.outletCode].totalKarton+=karton;
+    groups[inv.outletCode].invoices.push({invoiceNo:inv.invoiceNo,invoiceValue:inv.totalValue||0,karton});
+  });
+  let outletGroups=nearestNeighborOrder(Object.values(groups));
   const vehs=vehicleIds.map(id=>VEHICLES_DEF.find(v=>v.id===id)).filter(Boolean).sort((a,b)=>b.capacity-a.capacity);
   if(!vehs.length)return[];
   const result=vehs.map(v=>({id:v.id,name:v.name,capacity:v.capacity,hex:v.hex,total:0,kartonUsed:0,stops:[]}));
@@ -345,22 +458,23 @@ function balanceToVehicles(invoiceList,vehicleIds){
     let bestV=null,bestLoad=Infinity;
     result.forEach(v=>{if(v.kartonUsed+g.totalKarton<=v.capacity&&v.total<bestLoad){bestV=v;bestLoad=v.total;}});
     if(!bestV){let bestRemain=-Infinity;result.forEach(v=>{const rem=v.capacity-v.kartonUsed;if(rem>bestRemain){bestRemain=rem;bestV=v;}});}
-    g.invoices.forEach(inv=>{
-      bestV.stops.push({cc:inv.cc,name:inv.name,invoiceNo:inv.invoiceNo,invoice:inv.invoice,karton:estKarton(inv.invoice),invoiceDate:inv.invoiceDate||''});
-    });
-    bestV.total+=g.totalInv;
-    bestV.kartonUsed+=g.totalKarton;
+    g.invoices.forEach(iv=>bestV.stops.push({cc:g.cc,invoiceNo:iv.invoiceNo,invoiceValue:iv.invoiceValue,karton:iv.karton}));
+    bestV.total+=g.totalInv;bestV.kartonUsed+=g.totalKarton;
   });
   return result;
 }
 
-let manuallyAdjustedFlag=false;
 document.getElementById('balanceBtn').addEventListener('click',()=>{
-  if(!invoices.length){showToast('Belum ada invoice.');return;}
+  const todayInvoices=Object.values(invoicesLocal).filter(inv=>inv.status==='today');
+  if(!todayInvoices.length){showToast('Belum ada invoice berstatus "Kirim Hari Ini".');return;}
   if(!activeVehicles.length){showToast('Pilih minimal 1 kendaraan aktif.');return;}
   if(manuallyAdjusted&&!confirm('Penyesuaian manual akan direset. Lanjutkan?'))return;
-  vehiclePlan=balanceToVehicles(invoices,activeVehicles);
-  manuallyAdjusted=false;savePlan();renderVehicles();
+  const noCoords=todayInvoices.filter(inv=>{const o=outletByCc[inv.outletCode];return!o||o.lat==null;});
+  if(noCoords.length)showToast('⚠ '+noCoords.length+' invoice dilewati karena kode outlet tidak ditemukan di master (tanpa koordinat).');
+  vehiclePlan=balanceToVehicles(todayInvoices,activeVehicles);
+  manuallyAdjusted=false;
+  localStorage.setItem('sw_vehicle_plan',JSON.stringify(vehiclePlan));
+  renderVehicles();
   document.getElementById('exportCard').style.display='block';
   showToast('Berhasil dibagi ke '+vehiclePlan.length+' kendaraan.');
 });
@@ -374,78 +488,67 @@ function renderVehicles(){
     const pct=Math.round(v.total/grandTotal*100);
     const capPct=Math.min(100,Math.round(v.kartonUsed/v.capacity*100));
     const overCap=v.kartonUsed>v.capacity;
-    const stopsHtml=v.stops.map((s,si)=>
-      '<div class="vstop"><span class="sname" title="'+escapeHtml(s.name)+'">'+escapeHtml(s.name)+(s.invoiceNo?' · '+escapeHtml(s.invoiceNo):'')+'</span><span style="display:flex;align-items:center;gap:4px;flex:none;">'+fmtRp(s.invoice)+' ('+s.karton+'k) <select data-vi="'+vi+'" data-si="'+si+'" class="reassign">'+vehiclePlan.map(vx=>'<option value="'+vx.id+'"'+(vx.id===v.id?' selected':'')+'>'+vx.name.split(' ').map(w=>w[0]).join('')+'</option>').join('')+'</select></span></div>'
-    ).join('');
-    return '<div class="vcard" style="background:'+v.hex+'"><div class="vh"><span class="vname">'+v.name+'</span><span class="vtotal">'+fmtRp(v.total)+'</span></div><div class="vpct">'+v.stops.length+' outlet · '+pct+'% nilai · '+v.kartonUsed+'/'+v.capacity+' karton'+(overCap?' ⚠️ MELEBIHI':'')+'</div><div class="cap-bar"><div class="cap-fill" style="width:'+capPct+'%;'+(overCap?'background:#FF6B6B':'')+'"></div></div>'+stopsHtml+'</div>';
+    const stopsHtml=v.stops.map((s,si)=>{
+      const outlet=outletByCc[s.cc];
+      return '<div class="vstop"><span class="sname" title="'+escapeHtml(outlet?outlet.n:s.cc)+'">'+escapeHtml(outlet?outlet.n:s.cc)+' · '+escapeHtml(s.invoiceNo)+'</span><span style="display:flex;align-items:center;gap:4px;flex:none;">'+fmtRp(s.invoiceValue)+' ('+s.karton+'k) <select data-vi="'+vi+'" data-si="'+si+'" class="reassign">'+vehiclePlan.map(vx=>'<option value="'+vx.id+'"'+(vx.id===v.id?' selected':'')+'>'+vx.name.split(' ').map(w=>w[0]).join('')+'</option>').join('')+'</select></span></div>';
+    }).join('');
+    return '<div class="vcard" style="background:'+v.hex+'"><div class="vh"><span class="vname">'+v.name+'</span><span class="vtotal">'+fmtRp(v.total)+'</span></div><div class="vpct">'+v.stops.length+' invoice · '+pct+'% nilai · '+v.kartonUsed+'/'+v.capacity+' karton'+(overCap?' ⚠️ MELEBIHI':'')+'</div><div class="cap-bar"><div class="cap-fill" style="width:'+capPct+'%;'+(overCap?'background:#FF6B6B':'')+'"></div></div>'+stopsHtml+'</div>';
   }).join('');
   grid.querySelectorAll('.reassign').forEach(sel=>{
     sel.addEventListener('change',()=>{
       const vi=+sel.dataset.vi,si=+sel.dataset.si,newId=sel.value;
       const stop=vehiclePlan[vi].stops.splice(si,1)[0];
-      vehiclePlan[vi].total-=stop.invoice;vehiclePlan[vi].kartonUsed-=stop.karton;
+      vehiclePlan[vi].total-=stop.invoiceValue;vehiclePlan[vi].kartonUsed-=stop.karton;
       const target=vehiclePlan.find(v=>v.id===newId);
-      target.stops.push(stop);target.total+=stop.invoice;target.kartonUsed+=stop.karton;
-      manuallyAdjusted=true;savePlan();renderVehicles();
+      target.stops.push(stop);target.total+=stop.invoiceValue;target.kartonUsed+=stop.karton;
+      manuallyAdjusted=true;localStorage.setItem('sw_vehicle_plan',JSON.stringify(vehiclePlan));renderVehicles();
       showToast('Dipindah ke '+target.name);
     });
   });
 }
-if(vehiclePlan){renderVehicles();document.getElementById('exportCard').style.display='block';}
 
-/* ===== Build Payload ===== */
-function buildPayload(){
+/* ===== Publish plan to Firestore ===== */
+function buildPlanPayload(){
   const tmr=new Date();tmr.setDate(tmr.getDate()+1);
   return {
     tanggal_rencana:tmr.toISOString().slice(0,10),
     generated_at:new Date().toISOString(),
-    harga_per_karton:HARGA_PER_KARTON,
-    vehicles:vehiclePlan.map(v=>({id:v.id,name:v.name,capacity:v.capacity,hex:v.hex,total:v.total,kartonUsed:v.kartonUsed,stops:v.stops.map(s=>({cc:s.cc,invoiceNo:s.invoiceNo,invoice:s.invoice,karton:s.karton,invoiceDate:s.invoiceDate||''}))}))
+    vehicles:vehiclePlan.map(v=>({id:v.id,name:v.name,capacity:v.capacity,hex:v.hex,total:v.total,kartonUsed:v.kartonUsed,stops:v.stops.map(s=>({cc:s.cc,invoiceNo:s.invoiceNo,invoiceValue:s.invoiceValue,karton:s.karton}))}))
   };
 }
-
-/* ===== Publish to Firestore ===== */
-document.getElementById('publishBtn').addEventListener('click',async()=>{
+document.getElementById('publishPlanBtn').addEventListener('click',async()=>{
   if(!vehiclePlan){showToast('Bagi kendaraan dulu.');return;}
-  const btn=document.getElementById('publishBtn');
-  const connected=await initConnection();
-  if(!connected){showToast('Belum terhubung ke Firebase. Cek firebase-config.js.');return;}
-  btn.disabled=true;
-  const statusEl=document.getElementById('publishStatus');
+  if(!fbConnected){showToast('Belum terhubung ke Firebase.');return;}
+  const btn=document.getElementById('publishPlanBtn');btn.disabled=true;
+  const statusEl=document.getElementById('publishPlanStatus');
   statusEl.className='publish-status show wait';statusEl.textContent='Mempublikasikan…';
   try{
-    const payload=buildPayload();
+    const payload=buildPlanPayload();
     await db.collection('rencana').doc('current').set(payload);
-    statusEl.className='publish-status show ok';
-    statusEl.textContent='✅ Berhasil dipublikasikan! Tim bisa langsung buka linknya, tidak perlu refresh manual (update otomatis).';
+    statusEl.className='publish-status show ok';statusEl.textContent='✅ Rencana berhasil dipublikasikan!';
     showToast('Rencana berhasil dipublikasikan ke Firebase!');
     renderTeamLinks();
-  }catch(err){
-    console.error(err);
-    statusEl.className='publish-status show err';statusEl.textContent='❌ '+err.message;
-  }finally{btn.disabled=false;}
+  }catch(err){console.error(err);statusEl.className='publish-status show err';statusEl.textContent='❌ '+err.message;}
+  finally{btn.disabled=false;}
 });
-
 function renderTeamLinks(){
   const base=location.href.replace(/admin\.html.*$/,'');
-  const box=document.getElementById('teamLinkBox');
-  box.innerHTML='<b>🗺️ Peta + Laporan Antar (driver):</b><br><a href="'+base+'index.html" target="_blank">'+base+'index.html</a><br><br>'
+  document.getElementById('teamLinkBox').innerHTML='<b>🗺️ Peta + Laporan Antar (driver):</b><br><a href="'+base+'index.html" target="_blank">'+base+'index.html</a><br><br>'
     +'<b>📦 Verifikasi Muat Barang (checker gudang):</b><br><a href="'+base+'muat.html" target="_blank">'+base+'muat.html</a><br><br>'
     +'<b>📊 Dashboard Monitor (admin):</b><br><a href="'+base+'dashboard.html" target="_blank">'+base+'dashboard.html</a>';
 }
 
-/* ===== Reset (local only) ===== */
+/* ===== Reset ===== */
 document.getElementById('resetBtn').addEventListener('click',()=>{
-  if(!confirm('Hapus invoice & rencana yang tersimpan di browser ini? (Data yang sudah dipublikasikan ke Firebase tidak terhapus.)'))return;
-  invoices=[];vehiclePlan=null;manuallyAdjusted=false;
-  localStorage.removeItem('sw_invoices');localStorage.removeItem('sw_vehicle_plan');
-  renderInvoices();document.getElementById('vehicleResults').innerHTML='';
-  document.getElementById('exportCard').style.display='none';document.getElementById('uploadSummary').innerHTML='';
+  if(!confirm('Hapus rencana kendaraan lokal di browser ini? (Data invoice & rencana yang sudah dipublikasikan ke Firebase tidak terhapus.)'))return;
+  vehiclePlan=null;manuallyAdjusted=false;
+  localStorage.removeItem('sw_vehicle_plan');
+  document.getElementById('vehicleResults').innerHTML='';
+  document.getElementById('exportCard').style.display='none';
   showToast('Data lokal direset.');
 });
 
-/* ===== Init ===== */
-initConnection().then(()=>{ if(vehiclePlan) renderTeamLinks(); });
+boot();
 </script>
 </body>
 </html>

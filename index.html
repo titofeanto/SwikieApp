@@ -224,9 +224,9 @@ function popupHtmlGrouped(o,stops){
   stops.forEach((s,i)=>{
     const del=DELIVERIES[deliveryKey(o.cc,s.invoiceNo)];
     if(del){
-      rows+='<div class="inv-row done">✅ '+escapeHtml(s.invoiceNo||'(tanpa no)')+' · '+fmtRp(s.invoice)+'</div>';
+      rows+='<div class="inv-row done">✅ '+escapeHtml(s.invoiceNo||'(tanpa no)')+' · '+fmtRp(s.invoiceValue)+'</div>';
     }else{
-      rows+='<div class="inv-row"><label><input type="checkbox" id="chk_'+escapeHtml(o.cc)+'_'+i+'" checked> '+escapeHtml(s.invoiceNo||'(tanpa no)')+' · '+fmtRp(s.invoice)+'</label></div>';
+      rows+='<div class="inv-row"><label><input type="checkbox" id="chk_'+escapeHtml(o.cc)+'_'+i+'" checked> '+escapeHtml(s.invoiceNo||'(tanpa no)')+' · '+fmtRp(s.invoiceValue)+'</label></div>';
     }
   });
   const allDelivered=stops.every(s=>DELIVERIES[deliveryKey(o.cc,s.invoiceNo)]);
@@ -257,7 +257,7 @@ window.confirmDeliveryForOutlet=function(cc){
   }else if(!unchecked.length){
     msg='Tandai SEMUA '+checked.length+' invoice di outlet ini sebagai terkirim?';
   }else{
-    msg='Anda akan menandai '+checked.length+' dari '+pending.length+' invoice sebagai TERKIRIM.\n\n'+unchecked.length+' invoice berikut akan TETAP BELUM terkirim:\n'+unchecked.map(s=>'• '+(s.invoiceNo||'(tanpa no)')+' — '+fmtRp(s.invoice)).join('\n')+'\n\nLanjutkan?';
+    msg='Anda akan menandai '+checked.length+' dari '+pending.length+' invoice sebagai TERKIRIM.\n\n'+unchecked.length+' invoice berikut akan TETAP BELUM terkirim:\n'+unchecked.map(s=>'• '+(s.invoiceNo||'(tanpa no)')+' — '+fmtRp(s.invoiceValue)).join('\n')+'\n\nLanjutkan?';
   }
   if(!confirm(msg))return;
   doReportDelivery(cc,checked);
@@ -349,7 +349,7 @@ function applyFilters(){
     let stopsAll=[];
     RENCANA.vehicles.forEach(v=>{
       if(currentVehicle!=='all'&&v.id!==currentVehicle)return;
-      (v.stops||[]).forEach(s=>stopsAll.push({cc:s.cc,invoice:s.invoice,invoiceNo:s.invoiceNo,invoiceDate:s.invoiceDate,vehicleId:v.id,vehicleHex:v.hex}));
+      (v.stops||[]).forEach(s=>stopsAll.push({cc:s.cc,invoiceValue:s.invoiceValue,invoiceNo:s.invoiceNo,vehicleId:v.id,vehicleHex:v.hex}));
     });
     // Group by outlet so an outlet with several invoices gets ONE marker/popup
     // listing all of them, instead of each invoice silently overwriting the last.
@@ -362,7 +362,7 @@ function applyFilters(){
     });
     currentFiltered=filteredCcs.flatMap(cc=>{
       const o=outletByCc[cc];
-      return groups[cc].map(s=>Object.assign({},o,{_vehicleId:s.vehicleId,_invoice:s.invoice,_invoiceNo:s.invoiceNo,_invoiceDate:s.invoiceDate,_vehicleHex:s.vehicleHex}));
+      return groups[cc].map(s=>Object.assign({},o,{_vehicleId:s.vehicleId,_invoiceValue:s.invoiceValue,_invoiceNo:s.invoiceNo,_vehicleHex:s.vehicleHex}));
     });
     window._outletStopsRegistry={};
     filteredCcs.forEach(cc=>{

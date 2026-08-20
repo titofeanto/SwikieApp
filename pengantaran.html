@@ -23,9 +23,9 @@ input:focus{border-color:var(--ink-2);}
 .btn-primary{background:var(--ink-2);color:#fff;}.btn-primary:disabled{background:#B7C0C7;cursor:not-allowed;}
 .btn-go{background:var(--go);color:#fff;}.btn-outline{background:var(--surface);color:var(--ink-2);border:1.5px solid var(--line);}
 .hint{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5;}.hint b{color:var(--ink-2);}
+.divider{height:1px;background:var(--line);margin:14px 0;}
 .nav-row{display:flex;gap:8px;margin-bottom:14px;}
 .nav-row button{flex:1;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:10px;padding:10px;font-weight:700;font-size:12.5px;cursor:pointer;}
-.divider{height:1px;background:var(--line);margin:14px 0;}
 .outlet-hdr{margin-bottom:4px;}
 .outlet-hdr .name{font-family:var(--font-display);font-weight:700;font-size:17px;}
 .outlet-hdr .addr{font-size:12px;color:var(--muted);}
@@ -37,28 +37,29 @@ input:focus{border-color:var(--ink-2);}
 .inv-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
 .inv-head .invno{font-weight:700;font-size:13.5px;}
 .inv-head .vname{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;color:#fff;}
-.sku-line{border-bottom:1px solid var(--surface);padding:10px 0;}
-.sku-line .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;}
+.sku-line{border-bottom:1px solid var(--surface);padding:11px 0;}
+.sku-line .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;}
 .sku-line .sname{font-weight:600;font-size:13px;flex:1;}
 .sku-line .scode{color:var(--muted);font-size:10.5px;display:block;}
-.sku-line .exp-qty{font-size:11px;color:var(--muted);flex:none;text-align:right;}
-.sku-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.sku-line .sbarcode{color:var(--muted);font-size:10px;display:block;}
+.sku-line .price-tag{font-size:11px;color:var(--muted);text-align:right;flex:none;}
+.sku-line .promo-tag{font-size:10px;color:var(--go-dark);font-weight:700;}
+.sku-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;}
 .sku-fields .fld label{font-size:10px;margin-bottom:3px;}
 .sku-fields input{padding:7px 8px;font-size:12.5px;}
-.sku-fields input.reject{border-color:var(--danger);}
-.reject-subtotal{font-size:11px;color:var(--danger);font-weight:700;margin-top:4px;text-align:right;}
+.correction-tag{font-size:11px;font-weight:700;margin-top:4px;text-align:right;}
+.correction-tag.neg{color:var(--danger);}
+.correction-tag.pos{color:var(--go-dark);}
 .calc-box{background:var(--surface);border-radius:10px;padding:12px 14px;margin-top:10px;}
 .calc-row{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;}
 .calc-row.total{font-weight:700;font-size:13px;border-top:1px dashed var(--line);margin-top:6px;padding-top:8px;}
 .calc-row .neg{color:var(--danger);}
 .confirm-box{background:linear-gradient(135deg,var(--go),var(--go-dark));color:#fff;border-radius:12px;padding:14px;margin-top:10px;text-align:center;}
-.confirm-box.has-reject{background:linear-gradient(135deg,#E0762E,#B8531D);}
+.confirm-box.has-correction{background:linear-gradient(135deg,#E0762E,#B8531D);}
 .confirm-box .lbl{font-size:11px;opacity:0.9;font-weight:600;}
 .confirm-box .val{font-family:var(--font-display);font-weight:700;font-size:24px;margin:4px 0;}
 .inv-actions{display:flex;gap:8px;margin-top:12px;}
 .inv-actions .btn{flex:1;font-size:12.5px;padding:10px;}
-.status-pill{font-size:10px;font-weight:700;padding:4px 9px;border-radius:20px;background:#EAF7EE;color:var(--go-dark);}
-.status-pill.pending{background:var(--surface);color:var(--muted);}
 .empty-row{color:var(--muted);text-align:center;padding:30px;font-size:13px;}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:999;transition:transform .25s;box-shadow:0 4px 16px rgba(0,0,0,0.3);}
 #toast.show{transform:translateX(-50%) translateY(0);}
@@ -67,7 +68,7 @@ input:focus{border-color:var(--ink-2);}
 <body>
 <div class="wrap">
 <div class="nav-row"><button id="navMap">🗺️ Kembali ke Peta</button></div>
-<header><h1>🔍 Cek Barang & Konfirmasi Nilai</h1><p>Cocokkan barang yang diturunkan, hitung otomatis nilai baru jika ada barang ditolak/dikembalikan.</p></header>
+<header><h1>🔍 Cek Barang & Konfirmasi Nilai</h1><p>Cocokkan barang yang diturunkan per SKU. Nilai baru dihitung otomatis termasuk promo, jika ada barang dikembalikan.</p></header>
 
 <div class="card" id="searchCard" style="display:none;">
 <h2>Cari Outlet</h2>
@@ -88,41 +89,51 @@ input:focus{border-color:var(--ink-2);}
 <div id="toast"></div>
 
 <script>
-let OUTLETS=[],RENCANA=null,SKU_DETAIL={items:{}},DELIVERIES={},outletByCc={};
+let OUTLETS=[],RENCANA=null,INVOICES={},DELIVERIES={},outletByCc={},SKU_MASTER={skuInfo:{},barcodeToSku:{}};
 let currentCc=null,userLatLng=null,fbConnected=false;
+let skuToBarcode={}; // reverse index: skuCode -> a representative barcode string (for display)
 
-function parseParams(){
-  const sp=new URLSearchParams(location.search);
-  currentCc=sp.get('cc');
-}
+function parseParams(){const sp=new URLSearchParams(location.search);currentCc=sp.get('cc');}
 parseParams();
 
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function fmtRp(n){return'Rp '+Number(n).toLocaleString('id-ID');}
+function fmtRp(n){return'Rp '+Math.round(n).toLocaleString('id-ID');}
 let toastTimer;function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3600);}
 function deliveryKey(cc,invNo){return sanitizeDocId(cc+'|'+(invNo||''));}
+document.getElementById('navMap').addEventListener('click',()=>{window.location.href='./index.html';});
 
 async function boot(){
   try{fbConnected=typeof FIREBASE_CONFIGURED!=='undefined'&&FIREBASE_CONFIGURED&&await firebaseReady;}catch(e){console.error(e);fbConnected=false;}
   if(!fbConnected)showToast('Firebase belum terhubung — pengecekan tidak bisa disimpan.');
   try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});}catch(e){}
+  try{const r=await fetch('./sku_master.json');SKU_MASTER=await r.json();buildSkuToBarcode();}catch(e){console.error(e);}
   if(fbConnected){
     try{const doc=await db.collection('rencana').doc('current').get();if(doc.exists)RENCANA=doc.data();}catch(e){console.error(e);}
-    try{const snap=await db.collection('skuDetail').get();snap.forEach(doc=>{SKU_DETAIL.items[doc.id]=doc.data().items||[];});}catch(e){console.error(e);}
+    if(RENCANA&&RENCANA.vehicles){
+      let invoiceNos=new Set();
+      RENCANA.vehicles.forEach(v=>(v.stops||[]).forEach(s=>{if(!currentCc||s.cc===currentCc)invoiceNos.add(s.invoiceNo);}));
+      await Promise.all([...invoiceNos].map(async invNo=>{
+        try{const doc=await db.collection('invoices').doc(sanitizeDocId(invNo)).get();if(doc.exists)INVOICES[invNo]=doc.data();}catch(e){console.error(e);}
+      }));
+    }
     try{const snap=await db.collection('deliveries').get();snap.forEach(doc=>{DELIVERIES[doc.id]=doc.data();});}catch(e){console.error(e);}
   }
-  SKU_DETAIL.items=SKU_DETAIL.items||{};
 
   if('geolocation' in navigator){
     navigator.geolocation.getCurrentPosition(pos=>{userLatLng={lat:pos.coords.latitude,lng:pos.coords.longitude};},()=>{},{enableHighAccuracy:true,timeout:10000});
   }
 
-  if(currentCc&&outletByCc[currentCc]){
-    showOutlet(currentCc);
-  }else{
-    document.getElementById('searchCard').style.display='block';
-    setupSearch();
-  }
+  if(currentCc&&outletByCc[currentCc]){showOutlet(currentCc);}
+  else{document.getElementById('searchCard').style.display='block';setupSearch();}
+}
+
+function buildSkuToBarcode(){
+  Object.entries(SKU_MASTER.barcodeToSku||{}).forEach(([barcode,entries])=>{
+    entries.forEach(e=>{
+      // Prioritaskan barcode karton (CS) untuk ditampilkan sebagai referensi utama
+      if(!skuToBarcode[e.s]||e.k==='CS')skuToBarcode[e.s]=barcode;
+    });
+  });
 }
 
 function setupSearch(){
@@ -164,94 +175,102 @@ function renderInvoices(cc){
 
   list.innerHTML='';
   stops.forEach(s=>{
-    const skuLines=SKU_DETAIL.items[s.invoiceNo]||[];
+    const inv=INVOICES[s.invoiceNo];
     const dk=deliveryKey(cc,s.invoiceNo);
     const alreadyDelivered=DELIVERIES[dk];
     const card=document.createElement('div');card.className='inv-card';
     let skuHtml='';
-    if(skuLines.length){
-      skuLines.forEach((line,i)=>{
-        skuHtml+='<div class="sku-line" data-sku="'+escapeHtml(line.sku)+'" data-qty="'+line.qty+'">'
-          +'<div class="top"><div class="sname">'+escapeHtml(line.name)+'<span class="scode">'+escapeHtml(line.sku)+'</span></div><div class="exp-qty">invoice: '+line.qty+' pcs</div></div>'
+    if(inv&&inv.lines&&inv.lines.length){
+      inv.lines.forEach((line,i)=>{
+        const barcode=skuToBarcode[line.skuCode]||'-';
+        const unitNet=line.totalPcs?(line.net/line.totalPcs):0;
+        const promoTxt=line.discount?(' · promo '+fmtRp(Math.abs(line.discount))):'';
+        skuHtml+='<div class="sku-line" data-sku="'+escapeHtml(line.skuCode)+'" data-qty="'+line.totalPcs+'" data-unitnet="'+unitNet+'" data-net="'+line.net+'">'
+          +'<div class="top"><div class="sname">'+escapeHtml(line.skuName)+'<span class="scode">'+escapeHtml(line.skuCode)+'</span><span class="sbarcode">Barcode: '+escapeHtml(barcode)+'</span></div><div class="price-tag">'+fmtRp(unitNet)+'/pcs<div class="promo-tag">'+(line.discount?'promo -'+fmtRp(Math.abs(line.discount)):'')+'</div></div></div>'
           +'<div class="sku-fields">'
-          +'<div class="fld"><label>Harga Satuan</label><input type="number" min="0" class="harga-input" value="'+(line.harga||0)+'"></div>'
-          +'<div class="fld"><label>Qty Ditolak</label><input type="number" min="0" max="'+line.qty+'" class="reject-input" value="0"></div>'
-          +'<div class="fld"><label>Qty Diterima</label><input type="number" class="accept-display" value="'+line.qty+'" disabled></div>'
-          +'</div><div class="reject-subtotal" style="display:none;"></div>'
+          +'<div class="fld"><label>Qty Order</label><input type="number" value="'+line.totalPcs+'" disabled></div>'
+          +'<div class="fld"><label>Qty Diterima (pcs)</label><input type="number" min="0" max="'+line.totalPcs+'" class="accept-input" value="'+line.totalPcs+'"></div>'
+          +'</div><div class="correction-tag" style="display:none;"></div>'
           +'</div>';
       });
     }else{
-      skuHtml='<div class="hint">Belum ada detail SKU untuk invoice ini — kalkulator selisih tidak bisa dihitung otomatis. Data SKU bisa diupload lewat muat.html.</div>';
+      skuHtml='<div class="hint">Belum ada detail SKU untuk invoice ini.</div>';
     }
-    card.innerHTML='<div class="inv-head"><span class="invno">'+escapeHtml(s.invoiceNo||'-')+'</span><span class="vname" style="background:'+s.vehicleHex+';">'+escapeHtml(s.vehicleName)+'</span></div>'
+    const origTotal=inv?inv.totalValue:s.invoiceValue;
+    card.innerHTML='<div class="inv-head"><span class="invno">'+escapeHtml(s.invoiceNo)+'</span><span class="vname" style="background:'+s.vehicleHex+';">'+escapeHtml(s.vehicleName)+'</span></div>'
       +skuHtml
-      +'<div class="calc-box" style="display:'+(skuLines.length?'block':'none')+';">'
-      +'<div class="calc-row"><span>Nilai Invoice Awal</span><span class="orig-val">'+fmtRp(s.invoice)+'</span></div>'
-      +'<div class="calc-row"><span>Total Nilai Ditolak</span><span class="neg reject-val">Rp 0</span></div>'
-      +'<div class="calc-row total"><span>Nilai Baru</span><span class="new-val">'+fmtRp(s.invoice)+'</span></div>'
+      +'<div class="calc-box" style="display:'+(inv&&inv.lines&&inv.lines.length?'block':'none')+';">'
+      +'<div class="calc-row"><span>Nilai Invoice Awal</span><span class="orig-val">'+fmtRp(origTotal)+'</span></div>'
+      +'<div class="calc-row"><span>Total Koreksi</span><span class="neg correction-val">Rp 0</span></div>'
+      +'<div class="calc-row total"><span>Nilai Akhir</span><span class="new-val">'+fmtRp(origTotal)+'</span></div>'
       +'</div>'
-      +'<div class="confirm-box" style="display:'+(skuLines.length?'block':'none')+';"><div class="lbl">NILAI YANG HARUS DIKONFIRMASI</div><div class="val confirm-val">'+fmtRp(s.invoice)+'</div></div>'
+      +'<div class="confirm-box" style="display:'+(inv&&inv.lines&&inv.lines.length?'block':'none')+';"><div class="lbl">NILAI YANG HARUS DIKONFIRMASI</div><div class="val confirm-val">'+fmtRp(origTotal)+'</div></div>'
       +'<div class="inv-actions">'
-      +(skuLines.length?'<button class="btn btn-outline copy-btn">📋 Salin Nilai Baru</button>':'')
+      +(inv&&inv.lines&&inv.lines.length?'<button class="btn btn-outline copy-btn">📋 Salin Nilai Akhir</button>':'')
       +(alreadyDelivered?'<button class="btn btn-outline" disabled>✅ Sudah Dilaporkan '+new Date(alreadyDelivered.delivered_at).toLocaleString('id-ID')+'</button>':'<button class="btn btn-go save-btn">✅ Simpan & Tandai Terkirim</button>')
       +'</div>';
     list.appendChild(card);
-    wireInvoiceCard(card,s,cc);
+    wireInvoiceCard(card,s,cc,origTotal);
   });
 }
 
-function wireInvoiceCard(card,stop,cc){
+function wireInvoiceCard(card,stop,cc,origTotal){
   const skuLines=[...card.querySelectorAll('.sku-line')];
   function recalc(){
-    let totalReject=0;
-    const rejectedItems=[];
+    let totalCorrection=0;
+    const correctionItems=[];
     skuLines.forEach(line=>{
-      const sku=line.dataset.sku,qty=Number(line.dataset.qty);
-      const harga=Number(line.querySelector('.harga-input').value)||0;
-      let reject=Number(line.querySelector('.reject-input').value)||0;
-      if(reject>qty){reject=qty;line.querySelector('.reject-input').value=qty;}
-      const accept=qty-reject;
-      line.querySelector('.accept-display').value=accept;
-      const subtotal=reject*harga;
-      const subEl=line.querySelector('.reject-subtotal');
-      if(reject>0){subEl.style.display='block';subEl.textContent='Selisih: -'+fmtRp(subtotal);line.querySelector('.reject-input').classList.add('reject');}
-      else{subEl.style.display='none';line.querySelector('.reject-input').classList.remove('reject');}
-      totalReject+=subtotal;
-      if(reject>0){
+      const sku=line.dataset.sku,ordered=Number(line.dataset.qty),unitNet=Number(line.dataset.unitnet),origNet=Number(line.dataset.net);
+      let accepted=Number(line.querySelector('.accept-input').value);
+      if(isNaN(accepted))accepted=0;
+      if(accepted>ordered){accepted=ordered;line.querySelector('.accept-input').value=ordered;}
+      const newLineVal=unitNet*accepted;
+      const delta=newLineVal-origNet; // negatif kalau qty diterima < order (termasuk promo yg ikut dikembalikan karena unitNet sudah bersih dari promo per pcs)
+      const tagEl=line.querySelector('.correction-tag');
+      if(accepted!==ordered){
+        tagEl.style.display='block';
+        tagEl.className='correction-tag '+(delta<0?'neg':'pos');
+        tagEl.textContent=(delta<0?'':'+')+fmtRp(delta)+' (qty diterima '+accepted+' dari '+ordered+')';
+        line.querySelector('.accept-input').style.borderColor='var(--danger)';
+      }else{
+        tagEl.style.display='none';
+        line.querySelector('.accept-input').style.borderColor='';
+      }
+      totalCorrection+=delta;
+      if(accepted!==ordered){
         const name=line.querySelector('.sname').childNodes[0].textContent.trim();
-        rejectedItems.push({sku,name,qty_rejected:reject,unit_price:harga,subtotal});
+        correctionItems.push({sku,name,qty_ordered:ordered,qty_accepted:accepted,unit_price:unitNet,delta});
       }
     });
-    const newVal=stop.invoice-totalReject;
-    card.querySelector('.reject-val').textContent='-'+fmtRp(totalReject);
+    const newVal=origTotal+totalCorrection;
+    card.querySelector('.correction-val').textContent=(totalCorrection<0?'':'+')+fmtRp(totalCorrection);
     card.querySelector('.new-val').textContent=fmtRp(newVal);
     const confirmBox=card.querySelector('.confirm-box');
     if(confirmBox){
       confirmBox.querySelector('.confirm-val').textContent=fmtRp(newVal);
-      confirmBox.classList.toggle('has-reject',totalReject>0);
+      confirmBox.classList.toggle('has-correction',totalCorrection!==0);
     }
-    return {totalReject,newVal,rejectedItems};
+    return {totalCorrection,newVal,correctionItems};
   }
-  card.querySelectorAll('.harga-input,.reject-input').forEach(inp=>inp.addEventListener('input',recalc));
+  card.querySelectorAll('.accept-input').forEach(inp=>inp.addEventListener('input',recalc));
   recalc();
 
   const copyBtn=card.querySelector('.copy-btn');
   if(copyBtn)copyBtn.addEventListener('click',()=>{
     const{newVal}=recalc();
-    const text=String(Math.round(newVal));
-    navigator.clipboard.writeText(text).then(()=>showToast('Nilai baru ('+fmtRp(newVal)+') disalin ke clipboard.')).catch(()=>showToast('Gagal menyalin. Nilai baru: '+fmtRp(newVal)));
+    navigator.clipboard.writeText(String(Math.round(newVal))).then(()=>showToast('Nilai akhir ('+fmtRp(newVal)+') disalin.')).catch(()=>showToast('Nilai akhir: '+fmtRp(newVal)));
   });
 
   const saveBtn=card.querySelector('.save-btn');
-  if(saveBtn)saveBtn.addEventListener('click',()=>saveDeliveryCheck(cc,stop,recalc(),saveBtn));
+  if(saveBtn)saveBtn.addEventListener('click',()=>saveDeliveryCheck(cc,stop,origTotal,recalc(),saveBtn));
 }
 
-async function saveDeliveryCheck(cc,stop,calc,btn){
+async function saveDeliveryCheck(cc,stop,origTotal,calc,btn){
   if(!fbConnected){showToast('Belum terhubung ke Firebase.');return;}
   const nowIso=new Date().toISOString();
-  if(calc.rejectedItems.length){
-    const list=calc.rejectedItems.map(r=>'• '+r.name+' x'+r.qty_rejected+' = -'+fmtRp(r.subtotal)).join('\n');
-    if(!confirm('Ada '+calc.rejectedItems.length+' item ditolak:\n\n'+list+'\n\nNilai baru yang dikonfirmasi: '+fmtRp(calc.newVal)+'\n\nSimpan & tandai terkirim?'))return;
+  if(calc.correctionItems.length){
+    const list=calc.correctionItems.map(r=>'• '+r.name+': diterima '+r.qty_accepted+'/'+r.qty_ordered+' → '+(r.delta<0?'':'+')+fmtRp(r.delta)).join('\n');
+    if(!confirm('Ada '+calc.correctionItems.length+' item dengan qty berbeda dari order:\n\n'+list+'\n\nNilai akhir yang dikonfirmasi: '+fmtRp(calc.newVal)+'\n\nSimpan & tandai terkirim?'))return;
   }
   btn.disabled=true;btn.textContent='Menyimpan…';
   const dk=deliveryKey(cc,stop.invoiceNo);
@@ -261,26 +280,21 @@ async function saveDeliveryCheck(cc,stop,calc,btn){
     lat:userLatLng?userLatLng.lat:null,
     lon:userLatLng?userLatLng.lng:null,
     vehicle_id:stop.vehicleId,
-    original_value:stop.invoice,
-    rejected_value:calc.totalReject,
+    original_value:origTotal,
+    correction_value:calc.totalCorrection,
     confirmed_value:calc.newVal,
-    rejected_items:calc.rejectedItems
+    corrected_items:calc.correctionItems
   };
   try{
-    // Setiap invoice = satu dokumen sendiri, jadi tidak ada risiko tabrakan
-    // dengan driver lain yang menyimpan invoice/outlet lain di saat bersamaan.
     await db.collection('deliveries').doc(dk).set(record);
     DELIVERIES[dk]=record;
     btn.textContent='✅ Tersimpan';
-    showToast('Pengecekan & nilai baru berhasil disimpan.');
+    showToast('Pengecekan & nilai akhir berhasil disimpan.');
   }catch(err){
-    console.error(err);
-    showToast('Gagal menyimpan: '+err.message);
+    console.error(err);showToast('Gagal menyimpan: '+err.message);
     btn.disabled=false;btn.textContent='✅ Simpan & Tandai Terkirim';
   }
 }
-
-document.getElementById('navMap').addEventListener('click',()=>{window.location.href='./index.html';});
 
 boot();
 </script>

@@ -179,7 +179,37 @@ Kalau kartu invoice tidak muncul sama sekali, itu tandanya rencana atau detail
 SKU belum berhasil dipublikasikan/dimuat — cek status koneksi Firebase di
 bagian atas halaman.
 
-## Referensi Barcode Produk (sku_master.json)
+## Alur Kerja Baru (v2): Satu Sumber Data dari Extract
+
+Mulai versi ini, **satu-satunya sumber data invoice** adalah file extract
+"Secondary Sale Data" yang diupload di `admin.html`. Tidak ada lagi upload
+terpisah untuk nilai invoice dan detail SKU — semuanya jadi satu langkah.
+
+**Alur harian:**
+1. Admin buka `admin.html` → upload file extract dari sistem → klik
+   **Publikasikan Data Invoice ke Firebase**.
+2. Di tabel "Daftar Invoice", admin pilih status tiap invoice: **Kirim Hari
+   Ini** (masuk rencana pengantaran) atau **COD** (perlu diambil terpisah,
+   tidak dibagi ke mobil).
+3. Klik **Bagi Otomatis ke Kendaraan Aktif** — hanya invoice berstatus "Kirim
+   Hari Ini" yang diproses.
+4. Klik **Publikasikan Rencana ke Firebase**.
+5. Checker gudang buka `muat.html` → pilih invoice dari daftar → di halaman
+   detail, cocokkan tiap SKU dengan scan barcode. Kalau barcode yang dipindai
+   ternyata ada di invoice LAIN (bukan yang sedang dibuka), sistem otomatis
+   memberi tahu dan menawarkan pindah invoice atau tetap di invoice saat ini.
+6. Driver buka `index.html` (peta) → tekan outlet → **"🔍 Cek Barang &
+   Nilai"** → di sana muncul detail SKU lengkap dengan barcode, harga, dan
+   promo. Kalau qty yang diterima outlet berbeda dari qty invoice, nilai akhir
+   otomatis terkoreksi (termasuk promo yang ikut dikembalikan secara
+   proporsional) — tinggal salin nilai akhirnya untuk dikonfirmasi ke PDA
+   outlet (misalnya Alfamart).
+7. Admin pantau semuanya di `dashboard.html`, termasuk export Excel lengkap.
+
+**Duplikat otomatis ditimpa:** kalau file extract diupload ulang (misalnya
+ada revisi), baris dengan No Invoice + Kode SKU yang sama akan menimpa data
+lama; baris baru akan ditambahkan. Tidak akan terjadi data dobel.
+
 
 File baru `sku_master.json` berisi 19.519 SKU dari Product Hierarchy Anda,
 memetakan **barcode produk satuan (PC)** maupun **barcode karton/outer (CS)**

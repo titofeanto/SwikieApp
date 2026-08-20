@@ -152,7 +152,7 @@ document.getElementById('navMap').addEventListener('click',()=>{window.location.
 document.getElementById('navAdmin').addEventListener('click',()=>{window.location.href='./admin.html';});
 document.getElementById('navMuat').addEventListener('click',()=>{window.location.href='./muat.html';});
 
-let RENCANA=null,DELIVERIES={},OUTLETS=[],outletByCc={},SKU_DETAIL={items:{}},MUAT_CHECK={checks:{}};
+let RENCANA=null,DELIVERIES={},OUTLETS=[],outletByCc={},INVOICES={},MUAT_CHECK={checks:{}};
 
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtRp(n){return'Rp '+Number(n).toLocaleString('id-ID');}
@@ -184,10 +184,10 @@ async function loadData(){
     }catch(e){console.error('Gagal memuat deliveries:',e);}
 
     try{
-      SKU_DETAIL={items:{}};
-      const snap=await db.collection('skuDetail').get();
-      snap.forEach(doc=>{SKU_DETAIL.items[doc.id]=(doc.data().items)||[];});
-    }catch(e){console.error('Gagal memuat sku_detail:',e);}
+      INVOICES={};
+      const snap=await db.collection('invoices').get();
+      snap.forEach(doc=>{INVOICES[doc.id]=doc.data();});
+    }catch(e){console.error('Gagal memuat invoices:',e);}
 
     try{
       MUAT_CHECK={checks:{}};
@@ -224,8 +224,8 @@ function render(){
   const totalStops=allStops.length;
   const delivered=allStops.filter(s=>DELIVERIES[deliveryKey(s.cc,s.invoiceNo)]);
   const pending=totalStops-delivered.length;
-  const totalValue=allStops.reduce((s,x)=>s+x.invoice,0);
-  const deliveredValue=delivered.reduce((s,x)=>s+x.invoice,0);
+  const totalValue=allStops.reduce((s,x)=>s+x.invoiceValue,0);
+  const deliveredValue=delivered.reduce((s,x)=>s+x.invoiceValue,0);
   const pct=totalStops?Math.round(delivered.length/totalStops*100):0;
   const distances=delivered.map(s=>{
     const outlet=outletByCc[s.cc];const del=DELIVERIES[deliveryKey(s.cc,s.invoiceNo)];
@@ -285,13 +285,14 @@ function renderDetail(allStops){
     }
     let confirmedStr='-';
     if(del&&del.confirmed_value!=null){
-      const hasReject=del.rejected_value>0;
-      const items=(del.rejected_items||[]).map(r=>escapeHtml(r.name)+' x'+r.qty_rejected+' (-'+fmtRp(r.subtotal)+')').join(', ');
-      confirmedStr=hasReject
+      const hasCorrection=del.correction_value&&del.correction_value!==0;
+      const items=(del.corrected_items||[]).map(r=>escapeHtml(r.name)+' '+r.qty_accepted+'/'+r.qty_ordered+' ('+(r.delta<0?'':'+')+fmtRp(r.delta)+')').join(', ');
+      confirmedStr=hasCorrection
         ?'<span style="color:var(--danger);font-weight:700;" title="'+items.replace(/"/g,'&quot;')+'">'+fmtRp(del.confirmed_value)+' 🔻</span>'
         :fmtRp(del.confirmed_value);
     }
-    return'<tr><td>'+escapeHtml(name)+'<div style="color:var(--muted);font-size:10px;">'+s.cc+'</div></td><td>'+escapeHtml(s.invoiceNo||'-')+'</td><td style="font-size:11px;">'+escapeHtml(s.invoiceDate||'-')+'</td><td class="num">'+fmtRp(s.invoice)+'</td><td class="num">'+confirmedStr+'</td><td><span class="tag tag-veh" style="background:'+(s.vehicleHex||'#555')+'">'+escapeHtml(s.vehicleName)+'</span></td><td>'+statusTag+'</td><td style="font-size:11px;">'+timeStr+'</td><td>'+locStr+'</td><td>'+distStr+'</td></tr>';
+    const invDate=(INVOICES[s.invoiceNo]||{}).invoiceDate||'-';
+    return'<tr><td>'+escapeHtml(name)+'<div style="color:var(--muted);font-size:10px;">'+s.cc+'</div></td><td>'+escapeHtml(s.invoiceNo||'-')+'</td><td style="font-size:11px;">'+escapeHtml(invDate)+'</td><td class="num">'+fmtRp(s.invoiceValue)+'</td><td class="num">'+confirmedStr+'</td><td><span class="tag tag-veh" style="background:'+(s.vehicleHex||'#555')+'">'+escapeHtml(s.vehicleName)+'</span></td><td>'+statusTag+'</td><td style="font-size:11px;">'+timeStr+'</td><td>'+locStr+'</td><td>'+distStr+'</td></tr>';
   }).join('');
 }
 
@@ -302,15 +303,16 @@ document.getElementById('refreshBtn').addEventListener('click',loadData);
 // Export CSV
 document.getElementById('exportCsvBtn').addEventListener('click',()=>{
   if(!RENCANA)return;
-  let csv='Kode Outlet,Nama Outlet,No Invoice,Tanggal Invoice,Nilai Invoice,Nilai Terkonfirmasi,Nilai Ditolak,Item Ditolak,Kendaraan,Status,Waktu Kirim,Lat Master,Lon Master,Lat Aktual,Lon Aktual,Selisih Jarak (m)\n';
+  let csv='Kode Outlet,Nama Outlet,No Invoice,Tanggal Invoice,Nilai Invoice,Nilai Terkonfirmasi,Koreksi Nilai,Item Dikoreksi,Kendaraan,Status,Waktu Kirim,Lat Master,Lon Master,Lat Aktual,Lon Aktual,Selisih Jarak (m)\n';
   RENCANA.vehicles.forEach(v=>(v.stops||[]).forEach(s=>{
     const outlet=outletByCc[s.cc];const name=outlet?outlet.n:s.cc;
     const dk=deliveryKey(s.cc,s.invoiceNo);const del=DELIVERIES[dk];
     const distM=(del&&outlet)?Math.round(haversine(del.lat,del.lon,outlet.lat,outlet.lon)*1000):'';
     const confirmedVal=(del&&del.confirmed_value!=null)?del.confirmed_value:'';
-    const rejectedVal=(del&&del.rejected_value)?del.rejected_value:'';
-    const rejectedItemsStr=(del&&del.rejected_items&&del.rejected_items.length)?del.rejected_items.map(r=>r.name+' x'+r.qty_rejected).join('; '):'';
-    csv+=[s.cc,'"'+name.replace(/"/g,'""')+'"',s.invoiceNo||'',s.invoiceDate||'',s.invoice,confirmedVal,rejectedVal,'"'+rejectedItemsStr.replace(/"/g,'""')+'"',v.name,del?'Terkirim':'Belum',del?del.delivered_at:'',outlet?outlet.lat:'',outlet?outlet.lon:'',del?del.lat:'',del?del.lon:'',distM].join(',')+'\n';
+    const correctionVal=(del&&del.correction_value)?del.correction_value:'';
+    const correctedItemsStr=(del&&del.corrected_items&&del.corrected_items.length)?del.corrected_items.map(r=>r.name+' '+r.qty_accepted+'/'+r.qty_ordered).join('; '):'';
+    const invDate=(INVOICES[s.invoiceNo]||{}).invoiceDate||'';
+    csv+=[s.cc,'"'+name.replace(/"/g,'""')+'"',s.invoiceNo||'',invDate,s.invoiceValue,confirmedVal,correctionVal,'"'+correctedItemsStr.replace(/"/g,'""')+'"',v.name,del?'Terkirim':'Belum',del?del.delivered_at:'',outlet?outlet.lat:'',outlet?outlet.lon:'',del?del.lat:'',del?del.lon:'',distM].join(',')+'\n';
   }));
   const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download='rekap_pengantaran_'+new Date().toISOString().slice(0,10)+'.csv';
@@ -329,6 +331,7 @@ document.getElementById('exportXlsxBtn').addEventListener('click',()=>{
     const outlet=outletByCc[s.cc];
     const dk=deliveryKey(s.cc,s.invoiceNo);const del=DELIVERIES[dk];
     const distKm=(del&&outlet)?haversine(del.lat,del.lon,outlet.lat,outlet.lon):null;
+    const invDate=(INVOICES[s.invoiceNo]||{}).invoiceDate||'';
     sheet1.push({
       'Kode Outlet':s.cc,
       'Nama Outlet':outlet?outlet.n:'',
@@ -336,15 +339,15 @@ document.getElementById('exportXlsxBtn').addEventListener('click',()=>{
       'Wilayah':outlet?outlet.t:'',
       'Salesman':outlet?outlet.s:'',
       'No Invoice':s.invoiceNo||'',
-      'Tanggal Invoice':s.invoiceDate||'',
-      'Nilai Invoice':s.invoice,
+      'Tanggal Invoice':invDate,
+      'Nilai Invoice':s.invoiceValue,
       'Estimasi Karton':s.karton||'',
       'Kendaraan':v.name,
       'Status':del?'Terkirim':'Belum Terkirim',
       'Waktu Terkirim':del?del.delivered_at:'',
       'Nilai Terkonfirmasi':(del&&del.confirmed_value!=null)?del.confirmed_value:'',
-      'Nilai Ditolak':(del&&del.rejected_value)?del.rejected_value:'',
-      'Item Ditolak':(del&&del.rejected_items&&del.rejected_items.length)?del.rejected_items.map(r=>r.name+' x'+r.qty_rejected+' (Rp '+r.subtotal.toLocaleString('id-ID')+')').join('; '):'',
+      'Koreksi Nilai':(del&&del.correction_value)?del.correction_value:'',
+      'Item Dikoreksi':(del&&del.corrected_items&&del.corrected_items.length)?del.corrected_items.map(r=>r.name+' '+r.qty_accepted+'/'+r.qty_ordered+' (Rp '+r.delta.toLocaleString('id-ID')+')').join('; '):'',
       'Lat Master':outlet?outlet.lat:'',
       'Lon Master':outlet?outlet.lon:'',
       'Lat Aktual':del?del.lat:'',
@@ -357,9 +360,9 @@ document.getElementById('exportXlsxBtn').addEventListener('click',()=>{
 
   // Sheet 2: Detail SKU per Invoice
   const sheet2=[];
-  Object.entries(SKU_DETAIL.items||{}).forEach(([invNo,lines])=>{
-    lines.forEach(line=>{
-      sheet2.push({'No Invoice':invNo,'Kode SKU':line.sku,'Nama SKU':line.name,'Qty Invoice':line.qty,'Harga Satuan':line.harga||''});
+  Object.entries(INVOICES).forEach(([invNo,inv])=>{
+    (inv.lines||[]).forEach(line=>{
+      sheet2.push({'No Invoice':invNo,'Kode SKU':line.skuCode,'Nama SKU':line.skuName,'Qty (pcs)':line.totalPcs,'Nilai Net':line.net,'Diskon/Promo':line.discount||0});
     });
   });
   if(sheet2.length){
@@ -369,16 +372,16 @@ document.getElementById('exportXlsxBtn').addEventListener('click',()=>{
 
   // Sheet 3: Verifikasi Muat Barang
   const sheet3=[];
-  Object.entries(SKU_DETAIL.items||{}).forEach(([invNo,lines])=>{
-    lines.forEach(line=>{
-      const ck=(MUAT_CHECK.checks||{})[invNo+'|'+line.sku];
+  Object.entries(INVOICES).forEach(([invNo,inv])=>{
+    (inv.lines||[]).forEach(line=>{
+      const ck=(MUAT_CHECK.checks||{})[invNo+'|'+line.skuCode];
       sheet3.push({
         'No Invoice':invNo,
-        'Kode SKU':line.sku,
-        'Nama SKU':line.name,
-        'Qty Invoice':line.qty,
-        'Qty Dimuat':ck?ck.qty_loaded:'',
-        'Status':ck?(Number(ck.qty_loaded)===Number(line.qty)?'Sesuai':'Tidak Sesuai'):'Belum Dicek',
+        'Kode SKU':line.skuCode,
+        'Nama SKU':line.skuName,
+        'Qty Invoice (pcs)':line.totalPcs,
+        'Qty Dimuat (pcs)':ck?ck.qty_loaded:'',
+        'Status':ck?(Number(ck.qty_loaded)===Number(line.totalPcs)?'Sesuai':'Tidak Sesuai'):'Belum Dicek',
         'Waktu Dicek':ck?ck.checked_at:''
       });
     });

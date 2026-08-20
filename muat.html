@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Verifikasi Muat Barang</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -19,31 +18,18 @@ header h1{font-family:var(--font-display);font-size:20px;margin:0 0 4px;}header 
 .card{background:var(--surface-2);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(14,42,62,0.08);}
 .card h2{font-family:var(--font-display);font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px;}
 .badge{background:var(--surface);color:var(--ink-2);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
-label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;}
-input[type=text],input[type=number]{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;font-size:14px;font-family:var(--font-body);outline:none;background:var(--surface);color:var(--ink);}
-input:focus{border-color:var(--ink-2);}
 .btn{border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:var(--font-body);width:100%;}
 .btn-primary{background:var(--ink-2);color:#fff;}.btn-primary:disabled{background:#B7C0C7;cursor:not-allowed;}
 .btn-go{background:var(--go);color:#fff;}.btn-outline{background:var(--surface);color:var(--ink-2);border:1.5px solid var(--line);}
 .btn-sm{padding:7px 12px;font-size:12px;width:auto;}
 .hint{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5;}.hint b{color:var(--ink-2);}
-.nav-row{display:flex;gap:8px;margin-bottom:14px;}
-.nav-row button{flex:1;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:10px;padding:10px;font-weight:700;font-size:12.5px;cursor:pointer;}
 .divider{height:1px;background:var(--line);margin:14px 0;}
-.upload-zone{border:2px dashed var(--line);border-radius:12px;padding:18px 14px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;}
-.upload-zone:hover,.upload-zone.drag{border-color:var(--go);background:#F1F8F3;}
-.upload-zone input{display:none;}.upload-zone .icon{font-size:24px;margin-bottom:4px;}
-.upload-zone .main{font-weight:700;font-size:13px;}.upload-zone .sub{font-size:11px;color:var(--muted);margin-top:2px;}
-.summary-box{border-radius:10px;padding:12px 14px;margin-top:12px;font-size:12.5px;line-height:1.7;}
-.summary-ok{background:#EAF7EE;color:var(--go-dark);}.summary-warn{background:#FDF3E7;color:#8A5A16;}
-.summary-box b{font-weight:700;}.summary-list{max-height:100px;overflow-y:auto;font-size:11px;margin-top:4px;}
-.publish-status{font-size:12.5px;font-weight:600;margin-top:10px;padding:10px 12px;border-radius:9px;display:none;}
-.publish-status.show{display:block;}.publish-status.wait{background:#FDF3E7;color:#8A5A16;}
-.publish-status.ok{background:#EAF7EE;color:var(--go-dark);}.publish-status.err{background:#FCEAE7;color:var(--danger);}
 .conn-status{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;padding:10px 12px;border-radius:9px;background:var(--surface);margin-bottom:14px;}
 .conn-status .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;}
 .conn-status.ok .dot{background:var(--go);}.conn-status.ok{color:var(--go-dark);background:#EAF7EE;}
 .conn-status.err .dot{background:var(--danger);}.conn-status.err{color:var(--danger);background:#FCEAE7;}
+.nav-row{display:flex;gap:8px;margin-bottom:14px;}
+.nav-row button{flex:1;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:10px;padding:10px;font-weight:700;font-size:12.5px;cursor:pointer;}
 .vehicle-row{display:flex;gap:6px;margin:10px 0;overflow-x:auto;flex-wrap:wrap;}
 .vchip{flex:none;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;opacity:0.55;border:2px solid transparent;}
 .vchip.active{opacity:1;border-color:var(--ink);}
@@ -51,31 +37,37 @@ input:focus{border-color:var(--ink-2);}
 .pstat{background:var(--surface);border-radius:10px;padding:10px;text-align:center;}
 .pstat .num{font-family:var(--font-display);font-weight:700;font-size:20px;}.pstat .lbl{font-size:10.5px;color:var(--muted);font-weight:600;}
 .pstat.green .num{color:var(--go);}.pstat.red .num{color:var(--danger);}
-.inv-card{border:1.5px solid var(--line);border-radius:12px;padding:13px;margin-bottom:12px;}
-.inv-card.matched{border-color:var(--go);background:#F6FBF7;}
-.inv-card.mismatched{border-color:var(--danger);background:#FEF6F5;}
-.inv-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px;}
-.inv-head .outlet-name{font-weight:700;font-size:13.5px;}
-.inv-head .inv-meta{font-size:11px;color:var(--muted);margin-top:2px;}
-.inv-status{flex:none;font-size:10px;font-weight:700;padding:4px 9px;border-radius:20px;}
-.inv-status.pending{background:var(--surface);color:var(--muted);}
-.inv-status.ok{background:#EAF7EE;color:var(--go-dark);}
-.inv-status.bad{background:#FCEAE7;color:var(--danger);}
-.sku-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--surface);font-size:12.5px;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{text-align:left;color:var(--muted);font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1.5px solid var(--line);}
+td{padding:9px 8px;border-bottom:1px solid var(--surface);vertical-align:middle;}
+td.num{text-align:right;font-variant-numeric:tabular-nums;}
+tr.invoice-row{cursor:pointer;}
+tr.invoice-row:active{background:var(--surface);}
+tr.invoice-row.done{background:#F6FBF7;}
+.status-icon{font-size:14px;}
+.empty-row{color:var(--muted);text-align:center;padding:30px;font-size:13px;}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:999;transition:transform .25s;box-shadow:0 4px 16px rgba(0,0,0,0.3);}
+#toast.show{transform:translateX(-50%) translateY(0);}
+/* Detail view */
+#detailView{display:none;}
+#detailView.show{display:block;}
+#listView.hide{display:none;}
+.detail-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:10px;}
+.detail-hdr .outlet-name{font-family:var(--font-display);font-weight:700;font-size:16px;}
+.detail-hdr .inv-meta{font-size:12px;color:var(--muted);margin-top:2px;}
+.back-btn{border:none;background:var(--surface);color:var(--ink-2);border-radius:9px;padding:9px 14px;font-weight:700;font-size:12.5px;cursor:pointer;flex:none;}
+.sku-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--surface);font-size:12.5px;}
 .sku-row.flash{animation:flashgreen .6s ease;}
 @keyframes flashgreen{0%{background:#BEF0CC;}100%{background:transparent;}}
 .sku-row .sname{flex:1;min-width:0;}.sku-row .sname .code{color:var(--muted);font-size:10.5px;display:block;}
 .sku-row .sexpected{flex:none;font-size:10.5px;color:var(--muted);width:78px;text-align:center;line-height:1.3;}
-.sku-row input{width:58px;flex:none;text-align:center;padding:6px 4px;font-size:13px;}
+.sku-row input{width:58px;flex:none;text-align:center;padding:6px 4px;font-size:13px;border:1.5px solid var(--line);border-radius:8px;}
 .sku-row input.match{border-color:var(--go);background:#F1F8F3;}
 .sku-row input.mismatch{border-color:var(--danger);background:#FEF1F0;}
 .sku-icon{flex:none;width:20px;text-align:center;font-size:13px;}
-.inv-actions{display:flex;gap:8px;margin-top:10px;}
-.inv-actions .btn{flex:1;}
-.scan-btn{background:var(--live);color:#fff;border:none;border-radius:8px;padding:9px 12px;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;width:100%;justify-content:center;margin-bottom:10px;}
-.empty-row{color:var(--muted);text-align:center;padding:30px;font-size:13px;}
-#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:999;transition:transform .25s;box-shadow:0 4px 16px rgba(0,0,0,0.3);}
-#toast.show{transform:translateX(-50%) translateY(0);}
+.scan-btn{background:var(--live);color:#fff;border:none;border-radius:8px;padding:11px 12px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;width:100%;justify-content:center;margin-bottom:12px;}
+.save-row-btn{margin-top:12px;}
+/* Scanner modal */
 #scanModal{position:fixed;inset:0;background:rgba(14,42,62,0.92);z-index:3000;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
 #scanModal.show{display:flex;}
 #scanModal .scan-box{background:#fff;border-radius:16px;padding:16px;width:100%;max-width:420px;}
@@ -84,33 +76,50 @@ input:focus{border-color:var(--ink-2);}
 #scanModal .scan-feedback{margin-top:10px;text-align:center;font-size:13px;font-weight:700;min-height:20px;}
 #scanModal .scan-feedback.ok{color:var(--go-dark);}
 #scanModal .scan-feedback.bad{color:var(--danger);}
+#scanModal .scan-feedback.warn{color:#8A5A16;}
 #scanModal .close-scan{margin-top:10px;background:var(--surface);color:var(--ink-2);border:none;border-radius:9px;padding:10px;font-weight:700;width:100%;cursor:pointer;}
 #scanModal .invoice-label{text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;}
+/* Cross-invoice prompt */
+.switch-prompt{background:#FDF3E7;border:1.5px solid var(--live);border-radius:10px;padding:12px;margin-top:10px;font-size:12.5px;}
+.switch-prompt b{color:#8A5A16;}
+.switch-prompt .btn-row{display:flex;gap:8px;margin-top:10px;}
+.switch-prompt .btn-row button{flex:1;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:12px;cursor:pointer;}
+.switch-prompt .btn-switch{background:var(--live);color:#fff;}
+.switch-prompt .btn-stay{background:var(--surface-2);color:var(--ink-2);border:1.5px solid var(--line);}
 </style>
 </head>
 <body>
 <div class="wrap">
 <div class="nav-row"><button id="navMap">🗺️ Kembali ke Peta</button><button id="navAdmin">⚙️ Admin</button><button id="navDashboard">📊 Dashboard</button></div>
-<header><h1>✅ Verifikasi Muat Barang</h1><p>Cek jumlah barang per SKU yang dimuat ke kendaraan — bisa manual atau scan barcode. Tersimpan di Firebase, aman dipakai banyak orang bersamaan.</p></header>
+<header><h1>✅ Verifikasi Muat Barang</h1><p>Pilih invoice, lalu cocokkan barang dengan scan barcode.</p></header>
 
 <div class="conn-status" id="connStatus"><div class="dot"></div><span id="connStatusText">Menghubungkan ke Firebase…</span></div>
 
+<!-- ===== LIST VIEW ===== -->
+<div id="listView">
 <div class="card">
-<h2>📤 Upload Detail SKU per Invoice <span class="badge" id="countSkuLines">0 baris</span></h2>
-<div class="hint" style="margin-top:0;">Kolom: <b>No Invoice</b>, <b>Kode SKU</b>, <b>Nama SKU</b>, <b>Qty</b>, <b>Harga Satuan</b> (opsional, untuk kalkulator selisih di sesi pengantaran). Kolom Kode SKU boleh diisi <b>Kode SKU asli</b> ATAU langsung nomor barcode — sistem otomatis menerjemahkan barcode produk (PC) maupun barcode karton (CS/outer) yang dipindai ke Kode SKU yang benar lewat referensi Product Hierarchy, jadi tidak masalah barcode mana yang tertempel di kardus.</div>
-<button class="btn btn-outline btn-sm" id="downloadTemplateBtn" style="margin:8px 0;">⬇ Unduh Template Excel</button>
-<div class="upload-zone" id="uploadZone"><input type="file" id="fileInput" accept=".xlsx,.xls"><div class="icon">📤</div><div class="main">Klik atau tarik file Excel ke sini</div><div class="sub">Duplikat No Invoice + Kode SKU akan ditimpa</div></div>
-<div id="uploadSummary"></div>
-<button class="btn btn-go" id="publishSkuBtn" style="margin-top:12px;">🚀 Publikasikan Detail SKU ke Firebase</button>
-<div class="publish-status" id="publishSkuStatus"></div>
-</div>
-
-<div class="card">
-<h2>📋 Daftar Periksa Muat Barang</h2>
+<h2>📋 Daftar Invoice <span class="badge" id="countInv">0</span></h2>
 <div class="vehicle-row" id="vehicleRow"></div>
 <div class="prog-summary" id="progSummary"></div>
-<div id="invoiceList"></div>
-<div class="empty-row" id="emptyState" style="display:none;">Belum ada rencana pengantaran atau detail SKU untuk kendaraan ini.</div>
+<div style="overflow-x:auto;">
+<table><thead><tr><th>No.</th><th>Tgl</th><th>No Invoice</th><th>Outlet</th><th class="num">Nilai</th><th></th></tr></thead><tbody id="invoiceListBody"></tbody></table>
+</div>
+<div class="empty-row" id="listEmpty" style="display:none;">Belum ada invoice untuk kendaraan ini.</div>
+</div>
+</div>
+
+<!-- ===== DETAIL VIEW ===== -->
+<div id="detailView">
+<div class="card">
+<div class="detail-hdr">
+  <div><div class="outlet-name" id="detailOutletName"></div><div class="inv-meta" id="detailInvMeta"></div></div>
+  <button class="back-btn" id="backToList">← Daftar</button>
+</div>
+<button class="scan-btn" id="scanBtn">📷 Scan Barcode</button>
+<div id="switchPromptArea"></div>
+<div id="skuRowsArea"></div>
+<button class="btn btn-primary save-row-btn" id="saveDetailBtn">💾 Simpan Pengecekan</button>
+</div>
 </div>
 
 </div>
@@ -128,133 +137,66 @@ input:focus{border-color:var(--ink-2);}
 
 <script>
 /* ===== State ===== */
-let OUTLETS=[],RENCANA=null,SKU_DETAIL={items:{}},MUAT_CHECK={checks:{}},SKU_MASTER={skuInfo:{},barcodeToSku:{}};
+let OUTLETS=[],RENCANA=null,INVOICES={},MUAT_CHECK={checks:{}},SKU_MASTER={skuInfo:{},barcodeToSku:{}};
 let outletByCc={},currentVehicle='all',fbConnected=false;
-let html5QrCode=null,scanTargetInvoice=null;
+let html5QrCode=null,currentInvoiceNo=null;
+let skuToInvoices={}; // skuCode -> [invoiceNo,...] within today's plan (for cross-invoice hints)
 
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtRp(n){return'Rp '+Number(n).toLocaleString('id-ID');}
+function last5(cc){cc=String(cc||'');return cc.length>5?cc.slice(-5):cc;}
 let toastTimer;function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3600);}
-function setStatus(id,text,kind){const el=document.getElementById(id);el.textContent=text;el.className='publish-status show '+(kind||'');}
 
 /* ===== Boot ===== */
 async function initConnection(){
   const el=document.getElementById('connStatus'),txt=document.getElementById('connStatusText');
   try{
-    if(typeof FIREBASE_CONFIGURED==='undefined'){el.className='conn-status err';txt.textContent='firebase-config.js gagal dimuat — cek apakah file itu ada di folder yang sama di GitHub.';return false;}
-    if(!FIREBASE_CONFIGURED){el.className='conn-status err';txt.textContent='Firebase belum dikonfigurasi. Edit firebase-config.js.';return false;}
+    if(typeof FIREBASE_CONFIGURED==='undefined'){el.className='conn-status err';txt.textContent='firebase-config.js gagal dimuat.';return false;}
+    if(!FIREBASE_CONFIGURED){el.className='conn-status err';txt.textContent='Firebase belum dikonfigurasi.';return false;}
     const ok=await firebaseReady;
     if(ok){el.className='conn-status ok';txt.textContent='Terhubung ke Firebase.';return true;}
     el.className='conn-status err';txt.textContent='Gagal terhubung ke Firebase.';return false;
-  }catch(err){
-    console.error('initConnection error:',err);
-    el.className='conn-status err';txt.textContent='Error: '+err.message;
-    return false;
-  }
+  }catch(err){console.error(err);el.className='conn-status err';txt.textContent='Error: '+err.message;return false;}
 }
 
 async function boot(){
   fbConnected=await initConnection();
   try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});}catch(e){}
-  try{const r=await fetch('./sku_master.json');SKU_MASTER=await r.json();}catch(e){console.error('Gagal memuat sku_master.json:',e);}
+  try{const r=await fetch('./sku_master.json');SKU_MASTER=await r.json();}catch(e){console.error(e);}
 
   if(fbConnected){
     try{const doc=await db.collection('rencana').doc('current').get();if(doc.exists)RENCANA=doc.data();}catch(e){console.error(e);}
-    try{const snap=await db.collection('skuDetail').get();snap.forEach(doc=>{SKU_DETAIL.items[doc.id]=doc.data().items||[];});}catch(e){console.error(e);}
+    if(RENCANA&&RENCANA.vehicles){
+      const invoiceNos=new Set();
+      RENCANA.vehicles.forEach(v=>(v.stops||[]).forEach(s=>invoiceNos.add(s.invoiceNo)));
+      // Ambil detail tiap invoice (SKU-level) dari koleksi invoices
+      await Promise.all([...invoiceNos].map(async invNo=>{
+        try{const doc=await db.collection('invoices').doc(sanitizeDocId(invNo)).get();if(doc.exists)INVOICES[invNo]=doc.data();}catch(e){console.error(e);}
+      }));
+    }
     try{const snap=await db.collection('muatChecks').get();snap.forEach(doc=>{MUAT_CHECK.checks[doc.id]=doc.data();});}catch(e){console.error(e);}
-    // Real-time: update otomatis kalau checker lain menyimpan pengecekan
     db.collection('muatChecks').onSnapshot(snap=>{
       snap.docChanges().forEach(ch=>{if(ch.type!=='removed')MUAT_CHECK.checks[ch.doc.id]=ch.doc.data();});
-      render();
+      if(currentInvoiceNo)renderDetail(currentInvoiceNo);else renderList();
     },err=>console.error(err));
   }
 
+  buildSkuIndex();
   buildVehicleChips();
-  render();
+  renderList();
 }
 
-/* ===== Template & Upload ===== */
-document.getElementById('downloadTemplateBtn').addEventListener('click',()=>{
-  const ws=XLSX.utils.aoa_to_sheet([['No Invoice','Kode SKU','Nama SKU','Qty','Harga Satuan'],['INV-000123','20060385','ROYCO FDS CHICKEN MULTIPCK 48X(6X8G)',24,85000],['INV-000123','20060459','TARO NET POTATO FLAVOR 40X10G',12,32000],['INV-000124','20060486','LIFEBUOY BW MLDCARE PCH+PUF 48X60ML',10,45000]]);
-  ws['!cols']=[{wch:16},{wch:14},{wch:36},{wch:8},{wch:14}];
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Template');XLSX.writeFile(wb,'template_sku_detail.xlsx');
-});
-
-const uploadZone=document.getElementById('uploadZone'),fileInput=document.getElementById('fileInput');
-uploadZone.addEventListener('click',()=>fileInput.click());
-['dragover','dragenter'].forEach(ev=>uploadZone.addEventListener(ev,e=>{e.preventDefault();uploadZone.classList.add('drag');}));
-['dragleave','drop'].forEach(ev=>uploadZone.addEventListener(ev,e=>{e.preventDefault();uploadZone.classList.remove('drag');}));
-uploadZone.addEventListener('drop',e=>{if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});
-fileInput.addEventListener('change',e=>{if(e.target.files.length)handleFile(e.target.files[0]);fileInput.value='';});
-
-function normalizeKey(k){return String(k).toLowerCase().replace(/[^a-z0-9]/g,'');}
-function handleFile(file){
-  const reader=new FileReader();
-  reader.onload=evt=>{
-    try{
-      const data=new Uint8Array(evt.target.result);const wb=XLSX.read(data,{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
-      processUploadedSku(rows);
-    }catch(err){showToast('Gagal membaca file.');}
-  };reader.readAsArrayBuffer(file);
-}
-function processUploadedSku(rows){
-  const summaryBox=document.getElementById('uploadSummary');
-  if(!rows.length){summaryBox.innerHTML='<div class="summary-box summary-warn">File kosong.</div>';return;}
-  const hk=Object.keys(rows[0]);
-  const findKey=patterns=>hk.find(h=>patterns.some(p=>normalizeKey(h).includes(p)));
-  const kInv=findKey(['noinvoice','invoiceno','nomorinvoice','nomor']);
-  const kSku=findKey(['kodesku','skucode','barcode','kode']);
-  const kName=findKey(['namasku','skuname','nama','produk','barang']);
-  const kQty=findKey(['qty','quantity','jumlah']);
-  const kHarga=findKey(['hargasatuan','harga','price','unitprice']);
-  if(!kInv||!kSku||!kQty){summaryBox.innerHTML='<div class="summary-box summary-warn"><b>Kolom tidak dikenali.</b> Pastikan ada kolom No Invoice, Kode SKU, dan Qty.</div>';return;}
-  let added=0,updated=0;const invalidQty=[];
-  rows.forEach(r=>{
-    const invNo=String(r[kInv]||'').trim();const sku=String(r[kSku]||'').trim();
-    if(!invNo||!sku)return;
-    const qty=Number(String(r[kQty]).replace(/[^0-9.\-]/g,''));
-    if(!qty||qty<=0){invalidQty.push(invNo+'/'+sku);return;}
-    const name=kName?String(r[kName]||'').trim():sku;
-    const harga=kHarga?Number(String(r[kHarga]).replace(/[^0-9.\-]/g,''))||0:0;
-    if(!SKU_DETAIL.items[invNo])SKU_DETAIL.items[invNo]=[];
-    const list=SKU_DETAIL.items[invNo];
-    const idx=list.findIndex(x=>x.sku===sku);
-    if(idx>=0){list[idx]={sku,name,qty,harga};updated++;}else{list.push({sku,name,qty,harga});added++;}
+function buildSkuIndex(){
+  skuToInvoices={};
+  Object.values(INVOICES).forEach(inv=>{
+    (inv.lines||[]).forEach(line=>{
+      if(!skuToInvoices[line.skuCode])skuToInvoices[line.skuCode]=[];
+      if(!skuToInvoices[line.skuCode].includes(inv.invoiceNo))skuToInvoices[line.skuCode].push(inv.invoiceNo);
+    });
   });
-  let html='<div class="summary-box '+(invalidQty.length?'summary-warn':'summary-ok')+'"><b>'+added+' baris baru, '+updated+' ditimpa</b> dari '+rows.length+' baris.';
-  if(invalidQty.length)html+='<br>⚠ '+invalidQty.length+' baris qty tidak valid dilewati.';
-  html+='</div>';summaryBox.innerHTML=html;
-  document.getElementById('countSkuLines').textContent=Object.values(SKU_DETAIL.items).reduce((s,l)=>s+l.length,0)+' baris';
-  showToast(added+' baris baru, '+updated+' ditimpa.');
-  render();
 }
 
-/* ===== Publish SKU Detail to Firestore (batched writes) ===== */
-document.getElementById('publishSkuBtn').addEventListener('click',async()=>{
-  if(!fbConnected){showToast('Belum terhubung ke Firebase.');return;}
-  const invoiceNos=Object.keys(SKU_DETAIL.items);
-  if(!invoiceNos.length){showToast('Belum ada data SKU untuk dipublikasikan.');return;}
-  const btn=document.getElementById('publishSkuBtn');btn.disabled=true;
-  setStatus('publishSkuStatus','Mempublikasikan…','wait');
-  try{
-    // Firestore batch: maksimum 500 operasi per batch — dipecah otomatis kalau lebih.
-    for(let i=0;i<invoiceNos.length;i+=450){
-      const chunk=invoiceNos.slice(i,i+450);
-      const batch=db.batch();
-      chunk.forEach(invNo=>{
-        const docId=sanitizeDocId(invNo);
-        batch.set(db.collection('skuDetail').doc(docId),{invoiceNo:invNo,items:SKU_DETAIL.items[invNo]});
-      });
-      await batch.commit();
-    }
-    setStatus('publishSkuStatus','✅ Berhasil dipublikasikan! Tim gudang & pengantaran bisa langsung refresh.','ok');
-    showToast('Detail SKU berhasil dipublikasikan ke Firebase!');
-  }catch(err){console.error(err);setStatus('publishSkuStatus','❌ '+err.message,'err');}
-  finally{btn.disabled=false;}
-});
-
-/* ===== Vehicle Chips ===== */
+/* ===== Vehicle chips ===== */
 function buildVehicleChips(){
   const row=document.getElementById('vehicleRow');
   if(!RENCANA||!RENCANA.vehicles||!RENCANA.vehicles.length){row.innerHTML='';return;}
@@ -262,166 +204,119 @@ function buildVehicleChips(){
   row.querySelectorAll('.vchip').forEach(chip=>chip.addEventListener('click',()=>{
     currentVehicle=chip.dataset.v;
     row.querySelectorAll('.vchip').forEach(c=>c.classList.toggle('active',c===chip));
-    render();
+    renderList();
   }));
 }
 
-/* ===== Checklist Render ===== */
+/* ===== List View ===== */
 function checkKey(invoiceNo,sku){return sanitizeDocId(invoiceNo+'|'+sku);}
+function invoiceCheckStatus(invNo){
+  const inv=INVOICES[invNo];
+  if(!inv||!inv.lines||!inv.lines.length)return'nodata';
+  let allFilled=true,allMatch=true;
+  inv.lines.forEach(line=>{
+    const ck=MUAT_CHECK.checks[checkKey(invNo,line.skuCode)];
+    const loaded=ck?ck.qty_loaded:'';
+    if(loaded===''||loaded==null){allFilled=false;return;}
+    if(Number(loaded)!==Number(line.totalPcs))allMatch=false;
+  });
+  if(!allFilled)return'pending';
+  return allMatch?'ok':'mismatch';
+}
 
-function render(){
+function renderList(){
   if(!RENCANA||!RENCANA.vehicles||!RENCANA.vehicles.length){
-    document.getElementById('emptyState').style.display='block';document.getElementById('emptyState').textContent='Rencana pengantaran belum tersedia. Publikasikan dari admin.html dulu.';
-    document.getElementById('invoiceList').innerHTML='';document.getElementById('progSummary').innerHTML='';return;
+    document.getElementById('listEmpty').style.display='block';
+    document.getElementById('listEmpty').textContent='Rencana pengantaran belum tersedia. Publikasikan dari admin.html dulu.';
+    document.getElementById('invoiceListBody').innerHTML='';document.getElementById('progSummary').innerHTML='';return;
   }
   let stops=[];
   RENCANA.vehicles.forEach(v=>{
     if(currentVehicle!=='all'&&v.id!==currentVehicle)return;
     (v.stops||[]).forEach(s=>stops.push(Object.assign({},s,{vehicleId:v.id,vehicleName:v.name,vehicleHex:v.hex})));
   });
+  document.getElementById('countInv').textContent=stops.length;
 
-  const list=document.getElementById('invoiceList');
-  if(!stops.length){document.getElementById('emptyState').style.display='block';document.getElementById('emptyState').textContent='Tidak ada invoice untuk kendaraan ini.';list.innerHTML='';document.getElementById('progSummary').innerHTML='';return;}
-  document.getElementById('emptyState').style.display='none';
+  if(!stops.length){
+    document.getElementById('listEmpty').style.display='block';
+    document.getElementById('listEmpty').textContent='Tidak ada invoice untuk kendaraan ini.';
+    document.getElementById('invoiceListBody').innerHTML='';document.getElementById('progSummary').innerHTML='';return;
+  }
+  document.getElementById('listEmpty').style.display='none';
 
-  let totalInv=0,matchedInv=0,mismatchInv=0,noSkuInv=0;
-  const frag=document.createDocumentFragment();
-
-  stops.forEach(s=>{
-    totalInv++;
+  let okCount=0,mismatchCount=0,pendingCount=0;
+  const body=document.getElementById('invoiceListBody');
+  body.innerHTML=stops.map((s,i)=>{
     const outlet=outletByCc[s.cc];
-    const skuLines=SKU_DETAIL.items[s.invoiceNo]||[];
-    const card=document.createElement('div');card.className='inv-card';card.dataset.invoiceNo=s.invoiceNo;
-
-    if(!skuLines.length){
-      noSkuInv++;
-      card.innerHTML='<div class="inv-head"><div><div class="outlet-name">'+escapeHtml(outlet?outlet.n:s.cc)+'</div><div class="inv-meta">'+escapeHtml(s.invoiceNo||'-')+' · '+fmtRp(s.invoice)+' · <span style="color:'+s.vehicleHex+';font-weight:700;">'+escapeHtml(s.vehicleName)+'</span></div></div><span class="inv-status pending">Belum ada data SKU</span></div>';
-      frag.appendChild(card);return;
-    }
-
-    let allMatch=true,allFilled=true;
-    let rowsHtml='';
-    skuLines.forEach((line,i)=>{
-      const ck=MUAT_CHECK.checks[checkKey(s.invoiceNo,line.sku)];
-      const loadedQty=ck?ck.qty_loaded:'';
-      if(loadedQty===''||loadedQty==null)allFilled=false;
-      const isMatch=loadedQty!==''&&loadedQty!=null&&Number(loadedQty)===Number(line.qty);
-      if(!isMatch)allMatch=false;
-      const icon=loadedQty===''||loadedQty==null?'⬜':(isMatch?'✅':'⚠️');
-      const masterInfo=SKU_MASTER.skuInfo&&SKU_MASTER.skuInfo[line.sku];
-      const pcPerCs=masterInfo&&masterInfo.p;
-      const pcsHint=pcPerCs?(' · '+pcPerCs+' pcs/karton'):'';
-      const expTotalPcs=pcPerCs?(' ('+(line.qty*pcPerCs).toLocaleString('id-ID')+' pcs)'):'';
-      rowsHtml+='<div class="sku-row" data-sku="'+escapeHtml(line.sku)+'"><span class="sku-icon">'+icon+'</span><div class="sname">'+escapeHtml(line.name)+'<span class="code">'+escapeHtml(line.sku)+pcsHint+'</span></div><span class="sexpected">exp: '+line.qty+expTotalPcs+'</span><input type="number" min="0" data-inv="'+escapeHtml(s.invoiceNo)+'" data-sku="'+escapeHtml(line.sku)+'" data-idx="'+i+'" value="'+(loadedQty===''||loadedQty==null?'':loadedQty)+'" class="'+(loadedQty===''||loadedQty==null?'':(isMatch?'match':'mismatch'))+'" placeholder="qty"></div>';
-    });
-
-    if(allFilled){if(allMatch)matchedInv++;else mismatchInv++;}
-    card.className='inv-card'+(allFilled?(allMatch?' matched':' mismatched'):'');
-    card.dataset.invoiceNo=s.invoiceNo;
-    const statusHtml=allFilled?(allMatch?'<span class="inv-status ok">✅ Sesuai</span>':'<span class="inv-status bad">⚠️ Tidak Sesuai</span>'):'<span class="inv-status pending">Belum dicek</span>';
-
-    card.innerHTML='<div class="inv-head"><div><div class="outlet-name">'+escapeHtml(outlet?outlet.n:s.cc)+'</div><div class="inv-meta">'+escapeHtml(s.invoiceNo||'-')+' · '+fmtRp(s.invoice)+' · <span style="color:'+s.vehicleHex+';font-weight:700;">'+escapeHtml(s.vehicleName)+'</span></div></div>'+statusHtml+'</div>'
-      +'<button class="scan-btn" data-inv="'+escapeHtml(s.invoiceNo)+'">📷 Scan Barcode untuk Invoice Ini</button>'
-      +rowsHtml
-      +'<div class="inv-actions"><button class="btn btn-primary btn-sm save-inv-btn" data-inv="'+escapeHtml(s.invoiceNo)+'" style="width:100%;">💾 Simpan Pengecekan Invoice Ini</button></div>';
-    frag.appendChild(card);
+    const status=invoiceCheckStatus(s.invoiceNo);
+    if(status==='ok')okCount++;else if(status==='mismatch')mismatchCount++;else pendingCount++;
+    const icon=status==='ok'?'✅':status==='mismatch'?'⚠️':status==='nodata'?'❔':'⬜';
+    return '<tr class="invoice-row'+(status==='ok'?' done':'')+'" data-inv="'+escapeHtml(s.invoiceNo)+'"><td>'+(i+1)+'</td><td style="font-size:11px;">'+escapeHtml((INVOICES[s.invoiceNo]||{}).invoiceDate||'-')+'</td><td>'+escapeHtml(s.invoiceNo)+'</td><td>'+last5(s.cc)+' · '+escapeHtml(outlet?outlet.n:s.cc)+'</td><td class="num">'+fmtRp(s.invoiceValue)+'</td><td class="status-icon">'+icon+'</td></tr>';
+  }).join('');
+  body.querySelectorAll('.invoice-row').forEach(row=>{
+    row.addEventListener('click',()=>openDetail(row.dataset.inv));
   });
 
-  list.innerHTML='';list.appendChild(frag);
-
   document.getElementById('progSummary').innerHTML=
-    '<div class="pstat"><div class="num">'+totalInv+'</div><div class="lbl">Total Invoice</div></div>'
-    +'<div class="pstat green"><div class="num">'+matchedInv+'</div><div class="lbl">Sesuai</div></div>'
-    +'<div class="pstat red"><div class="num">'+mismatchInv+'</div><div class="lbl">Tidak Sesuai</div></div>'
-    +'<div class="pstat"><div class="num">'+(totalInv-matchedInv-mismatchInv-noSkuInv)+'</div><div class="lbl">Belum Dicek</div></div>'
-    +(noSkuInv?'<div class="pstat"><div class="num">'+noSkuInv+'</div><div class="lbl">Tanpa Data SKU</div></div>':'');
+    '<div class="pstat"><div class="num">'+stops.length+'</div><div class="lbl">Total Invoice</div></div>'
+    +'<div class="pstat green"><div class="num">'+okCount+'</div><div class="lbl">Sesuai</div></div>'
+    +'<div class="pstat red"><div class="num">'+mismatchCount+'</div><div class="lbl">Tidak Sesuai</div></div>'
+    +'<div class="pstat"><div class="num">'+pendingCount+'</div><div class="lbl">Belum Dicek</div></div>';
+}
 
-  list.querySelectorAll('input[type=number]').forEach(inp=>{
+/* ===== Detail View ===== */
+function openDetail(invNo){
+  currentInvoiceNo=invNo;
+  document.getElementById('listView').classList.add('hide');
+  document.getElementById('detailView').classList.add('show');
+  renderDetail(invNo);
+}
+document.getElementById('backToList').addEventListener('click',()=>{
+  currentInvoiceNo=null;
+  document.getElementById('detailView').classList.remove('show');
+  document.getElementById('listView').classList.remove('hide');
+  renderList();
+});
+document.getElementById('navMap').addEventListener('click',()=>{window.location.href='./index.html';});
+document.getElementById('navAdmin').addEventListener('click',()=>{window.location.href='./admin.html';});
+document.getElementById('navDashboard').addEventListener('click',()=>{window.location.href='./dashboard.html';});
+
+function renderDetail(invNo){
+  const inv=INVOICES[invNo];
+  const stopMeta=(RENCANA.vehicles.flatMap(v=>(v.stops||[]).map(s=>Object.assign({},s,{vehicleName:v.name,vehicleHex:v.hex}))).find(s=>s.invoiceNo===invNo))||{};
+  const outlet=outletByCc[stopMeta.cc];
+  document.getElementById('detailOutletName').textContent=outlet?outlet.n:(inv?inv.outletNameExtract:stopMeta.cc)||'-';
+  document.getElementById('detailInvMeta').innerHTML=escapeHtml(invNo)+' · '+fmtRp(stopMeta.invoiceValue||0)+' · <span style="color:'+(stopMeta.vehicleHex||'#555')+';font-weight:700;">'+escapeHtml(stopMeta.vehicleName||'')+'</span>';
+
+  const area=document.getElementById('skuRowsArea');
+  if(!inv||!inv.lines||!inv.lines.length){
+    area.innerHTML='<div class="hint">Belum ada detail SKU untuk invoice ini.</div>';
+    return;
+  }
+  area.innerHTML=inv.lines.map((line,i)=>{
+    const ck=MUAT_CHECK.checks[checkKey(invNo,line.skuCode)];
+    const loaded=ck?ck.qty_loaded:'';
+    const isMatch=loaded!==''&&loaded!=null&&Number(loaded)===Number(line.totalPcs);
+    const icon=loaded===''||loaded==null?'⬜':(isMatch?'✅':'⚠️');
+    const masterInfo=SKU_MASTER.skuInfo&&SKU_MASTER.skuInfo[line.skuCode];
+    const pcPerCs=masterInfo&&masterInfo.p;
+    const caseHint=pcPerCs?(' · '+pcPerCs+' pcs/karton'):'';
+    return '<div class="sku-row" data-sku="'+escapeHtml(line.skuCode)+'"><span class="sku-icon">'+icon+'</span><div class="sname">'+escapeHtml(line.skuName)+'<span class="code">'+escapeHtml(line.skuCode)+caseHint+'</span></div><span class="sexpected">exp: '+line.totalPcs+' pcs</span><input type="number" min="0" data-sku="'+escapeHtml(line.skuCode)+'" data-idx="'+i+'" value="'+(loaded===''||loaded==null?'':loaded)+'" class="'+(loaded===''||loaded==null?'':(isMatch?'match':'mismatch'))+'" placeholder="qty"></div>';
+  }).join('');
+  area.querySelectorAll('input[type=number]').forEach(inp=>{
     inp.addEventListener('input',()=>{
-      const expected=inp.closest('.sku-row').querySelector('.sexpected').textContent.replace('exp: ','');
+      const expected=inp.closest('.sku-row').querySelector('.sexpected').textContent.replace('exp: ','').replace(' pcs','');
       if(inp.value===''){inp.className='';return;}
       inp.className=Number(inp.value)===Number(expected)?'match':'mismatch';
     });
   });
-
-  list.querySelectorAll('.save-inv-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>saveInvoiceCheck(btn.dataset.inv,btn));
-  });
-
-  list.querySelectorAll('.scan-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>openScanner(btn.dataset.inv));
-  });
 }
 
-/* ===== Barcode Scanner ===== */
-function openScanner(invoiceNo){
-  scanTargetInvoice=invoiceNo;
-  const outlet=outletByCc[(RENCANA.vehicles.flatMap(v=>v.stops||[]).find(s=>s.invoiceNo===invoiceNo)||{}).cc];
-  document.getElementById('scanInvoiceLabel').textContent='Invoice: '+invoiceNo+(outlet?' · '+outlet.n:'');
-  document.getElementById('scanFeedback').textContent='';document.getElementById('scanFeedback').className='scan-feedback';
-  document.getElementById('scanModal').classList.add('show');
-  if(typeof Html5Qrcode==='undefined'){
-    document.getElementById('scanFeedback').textContent='Pemindai gagal dimuat. Cek koneksi internet lalu coba lagi.';
-    document.getElementById('scanFeedback').className='scan-feedback bad';return;
-  }
-  html5QrCode=new Html5Qrcode('qr-reader');
-  const config={fps:10,qrbox:{width:250,height:120}};
-  html5QrCode.start({facingMode:'environment'},config,onScanSuccess,()=>{}).catch(err=>{
-    document.getElementById('scanFeedback').textContent='Gagal mengakses kamera: '+err+'. Pastikan izin kamera diberikan.';
-    document.getElementById('scanFeedback').className='scan-feedback bad';
-  });
-}
-function resolveScannedCode(code){
-  // 1) Cocokkan langsung ke "Kode SKU" apa adanya (mendukung invoice yang
-  //    memang diisi dengan barcode persis sebagai Kode SKU).
-  // 2) Kalau tidak ketemu, terjemahkan lewat referensi Product Hierarchy
-  //    (barcode satuan / barcode karton → Kode SKU asli), karena satu SKU
-  //    bisa dipindai dari barcode produk (PC) ATAU barcode outer/karton (CS).
-  const candidates=[code];
-  const stripped=code.replace(/^0+/,'')||'0';
-  const master=(SKU_MASTER.barcodeToSku&&(SKU_MASTER.barcodeToSku[code]||SKU_MASTER.barcodeToSku[stripped]))||[];
-  master.forEach(sku=>{if(!candidates.includes(sku))candidates.push(sku);});
-  return candidates;
-}
+document.getElementById('saveDetailBtn').addEventListener('click',()=>saveInvoiceCheck(currentInvoiceNo));
 
-function onScanSuccess(decodedText){
-  const card=[...document.querySelectorAll('.inv-card')].find(c=>c.dataset.invoiceNo===scanTargetInvoice);
-  if(!card){return;}
-  const feedback=document.getElementById('scanFeedback');
-  const candidates=resolveScannedCode(decodedText);
-  let row=null;
-  for(const cand of candidates){
-    row=card.querySelector('.sku-row[data-sku="'+CSS.escape(cand)+'"]');
-    if(row)break;
-  }
-  if(!row){
-    const knownName=SKU_MASTER.skuInfo&&candidates.map(c=>SKU_MASTER.skuInfo[c]).find(Boolean);
-    feedback.textContent=knownName
-      ? '❌ "'+knownName+'" dikenali, tapi tidak ada di invoice ini.'
-      : '❌ Barcode "'+decodedText+'" tidak dikenali / tidak ada di invoice ini.';
-    feedback.className='scan-feedback bad';
-    if(navigator.vibrate)navigator.vibrate(200);
-    return;
-  }
-  const input=row.querySelector('input[type=number]');
-  const current=input.value===''?0:Number(input.value);
-  input.value=current+1;
-  input.dispatchEvent(new Event('input'));
-  row.classList.remove('flash');void row.offsetWidth;row.classList.add('flash');
-  feedback.textContent='✅ '+row.querySelector('.sname').textContent.split('\n')[0]+' → '+input.value+' pcs';
-  feedback.className='scan-feedback ok';
-  if(navigator.vibrate)navigator.vibrate(80);
-}
-document.getElementById('closeScanBtn').addEventListener('click',closeScanner);
-function closeScanner(){
-  document.getElementById('scanModal').classList.remove('show');
-  if(html5QrCode){html5QrCode.stop().then(()=>html5QrCode.clear()).catch(()=>{});html5QrCode=null;}
-}
-
-/* ===== Save one invoice's checks (single Firestore batch) ===== */
-async function saveInvoiceCheck(invoiceNo,btn){
+async function saveInvoiceCheck(invoiceNo){
   if(!fbConnected){showToast('Belum terhubung ke Firebase.');return;}
-  const inputs=document.querySelectorAll('input[data-inv="'+CSS.escape(invoiceNo)+'"]');
+  const inputs=document.querySelectorAll('#skuRowsArea input[type=number]');
   const nowIso=new Date().toISOString();
   const newChecks={};
   let hasEmpty=false;
@@ -429,31 +324,112 @@ async function saveInvoiceCheck(invoiceNo,btn){
     if(inp.value===''){hasEmpty=true;return;}
     newChecks[checkKey(invoiceNo,inp.dataset.sku)]={invoiceNo,sku:inp.dataset.sku,qty_loaded:Number(inp.value),checked_at:nowIso};
   });
-  if(hasEmpty&&!confirm('Ada SKU yang belum diisi qty-nya untuk invoice ini. Simpan yang sudah diisi saja?'))return;
+  if(hasEmpty&&!confirm('Ada SKU yang belum diisi qty-nya. Simpan yang sudah diisi saja?'))return;
   if(!Object.keys(newChecks).length){showToast('Belum ada qty yang diisi.');return;}
-
-  btn.disabled=true;btn.textContent='Menyimpan…';
+  const btn=document.getElementById('saveDetailBtn');btn.disabled=true;btn.textContent='Menyimpan…';
   try{
-    // Setiap invoice disimpan sebagai satu batch kecil — beberapa checker
-    // yang menyimpan invoice BERBEDA secara bersamaan tidak akan bentrok
-    // karena masing-masing menulis ke dokumen SKU yang berbeda.
     const batch=db.batch();
-    Object.entries(newChecks).forEach(([key,val])=>{
-      batch.set(db.collection('muatChecks').doc(key),val);
-      MUAT_CHECK.checks[key]=val;
-    });
+    Object.entries(newChecks).forEach(([key,val])=>{batch.set(db.collection('muatChecks').doc(key),val);MUAT_CHECK.checks[key]=val;});
     await batch.commit();
     showToast('✅ Pengecekan '+invoiceNo+' tersimpan.');
-    render();
-  }catch(err){
-    console.error(err);showToast('Gagal menyimpan: '+err.message);
-    btn.disabled=false;btn.textContent='💾 Simpan Pengecekan Invoice Ini';
-  }
+    renderDetail(invoiceNo);
+  }catch(err){console.error(err);showToast('Gagal menyimpan: '+err.message);}
+  finally{btn.disabled=false;btn.textContent='💾 Simpan Pengecekan';}
 }
 
-document.getElementById('navMap').addEventListener('click',()=>{window.location.href='./index.html';});
-document.getElementById('navAdmin').addEventListener('click',()=>{window.location.href='./admin.html';});
-document.getElementById('navDashboard').addEventListener('click',()=>{window.location.href='./dashboard.html';});
+/* ===== Barcode Scanner with cross-invoice matching ===== */
+function resolveScannedCode(code){
+  const candidates=[code];
+  const stripped=code.replace(/^0+/,'')||'0';
+  const master=(SKU_MASTER.barcodeToSku&&(SKU_MASTER.barcodeToSku[code]||SKU_MASTER.barcodeToSku[stripped]))||[];
+  master.forEach(e=>{if(!candidates.includes(e.s))candidates.push(e.s);});
+  return candidates;
+}
+
+document.getElementById('scanBtn').addEventListener('click',openScanner);
+function openScanner(){
+  document.getElementById('scanInvoiceLabel').textContent='Invoice: '+currentInvoiceNo;
+  document.getElementById('scanFeedback').textContent='';document.getElementById('scanFeedback').className='scan-feedback';
+  document.getElementById('scanModal').classList.add('show');
+  if(typeof Html5Qrcode==='undefined'){
+    document.getElementById('scanFeedback').textContent='Pemindai gagal dimuat. Cek koneksi internet lalu coba lagi.';
+    document.getElementById('scanFeedback').className='scan-feedback bad';return;
+  }
+  html5QrCode=new Html5Qrcode('qr-reader');
+  html5QrCode.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:120}},onScanSuccess,()=>{}).catch(err=>{
+    document.getElementById('scanFeedback').textContent='Gagal mengakses kamera: '+err+'.';
+    document.getElementById('scanFeedback').className='scan-feedback bad';
+  });
+}
+document.getElementById('closeScanBtn').addEventListener('click',closeScanner);
+function closeScanner(){
+  document.getElementById('scanModal').classList.remove('show');
+  if(html5QrCode){html5QrCode.stop().then(()=>html5QrCode.clear()).catch(()=>{});html5QrCode=null;}
+}
+
+function onScanSuccess(decodedText){
+  const feedback=document.getElementById('scanFeedback');
+  const candidates=resolveScannedCode(decodedText);
+  const inv=INVOICES[currentInvoiceNo];
+
+  // 1) Cek dulu apakah ada di invoice yang SEDANG dibuka
+  let matchedSku=null;
+  for(const cand of candidates){
+    if(inv&&inv.lines&&inv.lines.some(l=>l.skuCode===cand)){matchedSku=cand;break;}
+  }
+  if(matchedSku){
+    const row=document.querySelector('.sku-row[data-sku="'+CSS.escape(matchedSku)+'"]');
+    if(row){
+      const input=row.querySelector('input[type=number]');
+      const current=input.value===''?0:Number(input.value);
+      input.value=current+1;
+      input.dispatchEvent(new Event('input'));
+      row.classList.remove('flash');void row.offsetWidth;row.classList.add('flash');
+      feedback.textContent='✅ '+row.querySelector('.sname').textContent.split('\n')[0]+' → '+input.value+' pcs';
+      feedback.className='scan-feedback ok';
+      if(navigator.vibrate)navigator.vibrate(80);
+    }
+    return;
+  }
+
+  // 2) Tidak ada di invoice ini — cek apakah ada di invoice LAIN dalam rencana hari ini
+  let otherInvoiceNo=null,otherSku=null;
+  for(const cand of candidates){
+    const owners=(skuToInvoices[cand]||[]).filter(n=>n!==currentInvoiceNo);
+    if(owners.length){otherInvoiceNo=owners[0];otherSku=cand;break;}
+  }
+  if(otherInvoiceNo){
+    const otherInv=INVOICES[otherInvoiceNo];
+    const otherLine=otherInv.lines.find(l=>l.skuCode===otherSku);
+    const otherOutlet=outletByCc[otherInv.outletCode];
+    feedback.innerHTML='⚠️ "'+escapeHtml(otherLine.skuName)+'" tidak ada di invoice ini — barang ini ada di invoice <b>'+escapeHtml(otherInvoiceNo)+'</b> ('+escapeHtml(otherOutlet?otherOutlet.n:otherInv.outletCode)+').<br><small>Saran: selesaikan dulu invoice yang sedang dikerjakan sebelum pindah.</small>';
+    feedback.className='scan-feedback warn';
+    if(navigator.vibrate)navigator.vibrate([100,60,100]);
+    showSwitchPrompt(otherInvoiceNo);
+    return;
+  }
+
+  // 3) Sama sekali tidak dikenali di invoice manapun hari ini
+  const knownName=SKU_MASTER.skuInfo&&candidates.map(c=>SKU_MASTER.skuInfo[c]&&SKU_MASTER.skuInfo[c].n).find(Boolean);
+  feedback.textContent=knownName
+    ? '❌ "'+knownName+'" dikenali sebagai produk, tapi tidak ada di invoice manapun hari ini. Cek ulang barangnya.'
+    : '❌ Barcode "'+decodedText+'" tidak dikenali. Cek ulang atau cari barang yang sesuai.';
+  feedback.className='scan-feedback bad';
+  if(navigator.vibrate)navigator.vibrate(200);
+}
+
+function showSwitchPrompt(otherInvoiceNo){
+  const area=document.getElementById('switchPromptArea');
+  const otherOutlet=outletByCc[(INVOICES[otherInvoiceNo]||{}).outletCode];
+  area.innerHTML='<div class="switch-prompt">⚠️ Ada barang yang cocok di invoice lain: <b>'+escapeHtml(otherInvoiceNo)+'</b> ('+escapeHtml(otherOutlet?otherOutlet.n:'')+'). Selesaikan invoice ini dulu disarankan — tapi Anda bisa pindah kalau perlu.'
+    +'<div class="btn-row"><button class="btn-stay" id="stayBtn">Tetap di Invoice Ini</button><button class="btn-switch" id="switchBtn">Pindah ke Invoice Itu</button></div></div>';
+  document.getElementById('stayBtn').addEventListener('click',()=>{area.innerHTML='';});
+  document.getElementById('switchBtn').addEventListener('click',()=>{
+    area.innerHTML='';
+    closeScanner();
+    openDetail(otherInvoiceNo);
+  });
+}
 
 boot();
 </script>
