@@ -165,10 +165,16 @@ async function initConnection(){
 
 async function boot(){
   fbConnected=await initConnection();
-  try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});}catch(e){}
+  try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();}catch(e){}
   try{const r=await fetch('./sku_master.json');SKU_MASTER=await r.json();}catch(e){console.error(e);}
 
   if(fbConnected){
+    try{
+      const snap=await db.collection('outletsExtra').get();
+      const byCc={};OUTLETS.forEach(o=>{byCc[o.cc]=o;});
+      snap.forEach(doc=>{byCc[doc.id]=doc.data();});
+      OUTLETS=Object.values(byCc);
+    }catch(e){console.error('Gagal memuat outletsExtra:',e);}
     try{const doc=await db.collection('rencana').doc('current').get();if(doc.exists)RENCANA=doc.data();}catch(e){console.error(e);}
     if(RENCANA&&RENCANA.vehicles){
       const invoiceNos=new Set();
@@ -195,6 +201,7 @@ async function boot(){
     },err=>console.error(err));
   }
 
+  OUTLETS.forEach((o,i)=>{o.id=i;outletByCc[o.cc]=o;});
   buildSkuIndex();
   buildVehicleChips();
   renderList();

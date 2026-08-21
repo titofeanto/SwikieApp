@@ -105,9 +105,16 @@ document.getElementById('navMap').addEventListener('click',()=>{window.location.
 async function boot(){
   try{fbConnected=typeof FIREBASE_CONFIGURED!=='undefined'&&FIREBASE_CONFIGURED&&await firebaseReady;}catch(e){console.error(e);fbConnected=false;}
   if(!fbConnected)showToast('Firebase belum terhubung — pengecekan tidak bisa disimpan.');
-  try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});}catch(e){}
+  try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();}catch(e){}
   try{const r=await fetch('./sku_master.json');SKU_MASTER=await r.json();buildSkuToBarcode();}catch(e){console.error(e);}
   if(fbConnected){
+    try{
+      const snap=await db.collection('outletsExtra').get();
+      const byCc={};OUTLETS.forEach(o=>{byCc[o.cc]=o;});
+      snap.forEach(doc=>{byCc[doc.id]=doc.data();});
+      OUTLETS=Object.values(byCc);
+    }catch(e){console.error('Gagal memuat outletsExtra:',e);}
+    OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});
     try{const doc=await db.collection('rencana').doc('current').get();if(doc.exists)RENCANA=doc.data();}catch(e){console.error(e);}
     if(RENCANA&&RENCANA.vehicles){
       let invoiceNos=new Set();
@@ -118,6 +125,7 @@ async function boot(){
     }
     try{const snap=await db.collection('deliveries').get();snap.forEach(doc=>{DELIVERIES[doc.id]=doc.data();});}catch(e){console.error(e);}
   }
+  if(!Object.keys(outletByCc).length)OUTLETS.forEach(o=>{outletByCc[o.cc]=o;}); // fallback kalau Firebase gagal
 
   if('geolocation' in navigator){
     navigator.geolocation.getCurrentPosition(pos=>{userLatLng={lat:pos.coords.latitude,lng:pos.coords.longitude};},()=>{},{enableHighAccuracy:true,timeout:10000});

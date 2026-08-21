@@ -150,7 +150,6 @@ let fbConnected=false;
 /* ===== Boot ===== */
 async function boot(){
   try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();}catch(e){showToast('Gagal memuat outlets.json');return;}
-  OUTLETS.forEach((o,i)=>{o.id=i;outletByCc[o.cc]=o;});
 
   // Seluruh proses Firebase dibungkus try/catch: apa pun yang salah di sini
   // TIDAK BOLEH menghentikan peta. Kalau Firebase gagal, peta tetap tampil
@@ -158,6 +157,14 @@ async function boot(){
   try{
     fbConnected = typeof FIREBASE_CONFIGURED!=='undefined' && FIREBASE_CONFIGURED && await firebaseReady;
     if(fbConnected){
+      // Gabungkan outlet baru/perbaikan yang dipublikasikan admin (toko baru
+      // yang belum ada di outlets.json bawaan akan ikut muncul di peta).
+      try{
+        const snap=await db.collection('outletsExtra').get();
+        const byCc={};OUTLETS.forEach(o=>{byCc[o.cc]=o;});
+        snap.forEach(doc=>{byCc[doc.id]=doc.data();});
+        OUTLETS=Object.values(byCc);
+      }catch(e){console.error('Gagal memuat outletsExtra:',e);}
       try{
         const doc=await db.collection('rencana').doc('current').get();
         if(doc.exists)RENCANA=doc.data();
@@ -180,6 +187,7 @@ async function boot(){
     fbConnected=false;
     showToast('Firebase bermasalah: '+err.message+'. Peta tetap bisa dipakai untuk browsing outlet.');
   }
+  OUTLETS.forEach((o,i)=>{o.id=i;outletByCc[o.cc]=o;});
   initApp();
 }
 

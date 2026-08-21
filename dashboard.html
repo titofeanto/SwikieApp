@@ -170,7 +170,14 @@ async function loadData(){
     const connected=await firebaseReady;
     if(!connected)throw new Error('Gagal terhubung ke Firebase.');
 
-    try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});}catch(e){}
+    try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();}catch(e){}
+    try{
+      const snap=await db.collection('outletsExtra').get();
+      const byCc={};OUTLETS.forEach(o=>{byCc[o.cc]=o;});
+      snap.forEach(doc=>{byCc[doc.id]=doc.data();});
+      OUTLETS=Object.values(byCc);
+    }catch(e){console.error('Gagal memuat outletsExtra:',e);}
+    OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});
 
     try{
       const doc=await db.collection('rencana').doc('current').get();

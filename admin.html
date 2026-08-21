@@ -146,6 +146,16 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 </div>
 
 <div class="card">
+<h2>🏪 Update Daftar Outlet <span class="badge" id="countExtraOutlets">0 tambahan</span></h2>
+<div class="hint" style="margin-top:0;">Untuk toko baru yang belum muncul di peta, atau perbaikan lokasi/data toko lama. Upload di sini otomatis tergabung dengan data outlet yang sudah ada — tidak perlu edit file <code>outlets.json</code> secara manual lagi.</div>
+<button class="btn btn-outline btn-sm" id="downloadOutletTemplateBtn" style="margin:8px 0;">⬇ Unduh Contoh Format Outlet</button>
+<div class="upload-zone" id="outletUploadZone"><input type="file" id="outletFileInput" accept=".xlsx,.xls"><div class="icon">🏪</div><div class="main">Klik atau tarik file outlet baru ke sini</div><div class="sub">Kolom: Kode Outlet, Nama Outlet, Alamat, Wilayah, Salesman, Hari PJP, Latitude, Longitude</div></div>
+<div id="outletUploadSummary"></div>
+<button class="btn btn-go" id="publishOutletsBtn" style="margin-top:12px;">🚀 Publikasikan Outlet Baru ke Firebase</button>
+<div class="publish-status" id="publishOutletsStatus"></div>
+</div>
+
+<div class="card">
 <h2>🚛 Pilih Kendaraan Aktif</h2>
 <div class="hint" style="margin-top:0;margin-bottom:10px;">Centang kendaraan yang akan dipakai hari ini.</div>
 <div class="veh-grid" id="vehGrid"></div>
@@ -215,6 +225,7 @@ const VEHICLES_DEF = [
   {id:'t4',name:'Traga 4',capacity:250,hex:'#00838F'}
 ];
 let OUTLETS=[],outletByCc={},SKU_MASTER={skuInfo:{},barcodeToSku:{}};
+let outletsExtraLocal={}; // cc -> {cc,n,a,t,s,p,lat,lon} — outlet baru/perbaikan dari admin
 let invoicesLocal={}; // invoiceNo -> {invoiceNo, invoiceDate, outletCode, outletNameExtract, lines:[...], totalValue, status}
 let activeVehicles = JSON.parse(localStorage.getItem('sw_active_vehicles') || '["de","en","t1","t2"]');
 let vehiclePlan = JSON.parse(localStorage.getItem('sw_vehicle_plan') || 'null');
@@ -242,17 +253,31 @@ async function initConnection(){
 
 async function boot(){
   fbConnected=await initConnection();
-  try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();OUTLETS.forEach(o=>{outletByCc[o.cc]=o;});}catch(e){}
+  try{const r=await fetch('./outlets.json',{cache:'no-store'});OUTLETS=await r.json();}catch(e){}
   try{const r=await fetch('./sku_master.json');SKU_MASTER=await r.json();}catch(e){console.error('Gagal memuat sku_master.json:',e);}
   if(fbConnected){
+    try{
+      const snap=await db.collection('outletsExtra').get();
+      snap.forEach(doc=>{outletsExtraLocal[doc.id]=doc.data();});
+      document.getElementById('countExtraOutlets').textContent=Object.keys(outletsExtraLocal).length+' tambahan';
+    }catch(e){console.error('Gagal memuat outletsExtra:',e);}
     try{
       const snap=await db.collection('invoices').get();
       snap.forEach(doc=>{invoicesLocal[doc.id]=doc.data();});
       renderInvoiceTable();
     }catch(e){console.error('Gagal memuat invoices:',e);}
   }
+  mergeOutlets();
   renderVehGrid();
   if(vehiclePlan){renderVehicles();document.getElementById('exportCard').style.display='block';renderTeamLinks();}
+}
+function mergeOutlets(){
+  const byCc={};
+  OUTLETS.forEach(o=>{byCc[o.cc]=o;});
+  Object.values(outletsExtraLocal).forEach(o=>{byCc[o.cc]=o;}); // tambahan/perbaikan menimpa data lama dengan cc sama
+  OUTLETS=Object.values(byCc);
+  outletByCc={};
+  OUTLETS.forEach((o,i)=>{o.id=i;outletByCc[o.cc]=o;});
 }
 
 /* ===== Vehicle Selection ===== */
@@ -413,6 +438,97 @@ document.getElementById('publishInvoicesBtn').addEventListener('click',async()=>
     }
     statusEl.className='publish-status show ok';statusEl.textContent='✅ '+invoiceNos.length+' invoice berhasil dipublikasikan ke Firebase.';
     showToast('Data invoice berhasil dipublikasikan!');
+  }catch(err){console.error(err);statusEl.className='publish-status show err';statusEl.textContent='❌ '+err.message;}
+  finally{btn.disabled=false;}
+});
+
+/* ===== Update Daftar Outlet (toko baru / perbaikan lokasi) ===== */
+document.getElementById('downloadOutletTemplateBtn').addEventListener('click',()=>{
+  const headers=['Kode Outlet','Nama Outlet','Alamat','Wilayah','Salesman','Hari PJP','Latitude','Longitude'];
+  const sample=[
+    ['917102300301999999','TOKO BARU JAYA','JL. MERDEKA NO 10','KOTA SORONG','STEFANUS-SPLIT HC FOOD','Monday',-0.876543,131.256789],
+    ['917102300301999998','WARUNG SUMBER REJEKI','JL. BASUKI RAHMAT','KOTA SORONG','TEIS-SPLIT HC FOOD','Wednesday',-0.881234,131.261234]
+  ];
+  const ws=XLSX.utils.aoa_to_sheet([headers,...sample]);
+  ws['!cols']=headers.map(()=>({wch:18}));
+  ['A2','A3'].forEach(a=>{if(ws[a]){ws[a].t='s';ws[a].z='@';}}); // Kode Outlet sebagai Text, hindari kepotong
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Outlet Baru');XLSX.writeFile(wb,'contoh_format_outlet.xlsx');
+  showToast('Kode Outlet wajib diisi Text (bukan Number) supaya angka panjang tidak berubah.');
+});
+
+const outletUploadZone=document.getElementById('outletUploadZone'),outletFileInput=document.getElementById('outletFileInput');
+outletUploadZone.addEventListener('click',()=>outletFileInput.click());
+['dragover','dragenter'].forEach(ev=>outletUploadZone.addEventListener(ev,e=>{e.preventDefault();outletUploadZone.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>outletUploadZone.addEventListener(ev,e=>{e.preventDefault();outletUploadZone.classList.remove('drag');}));
+outletUploadZone.addEventListener('drop',e=>{if(e.dataTransfer.files.length)handleOutletFile(e.dataTransfer.files[0]);});
+outletFileInput.addEventListener('change',e=>{if(e.target.files.length)handleOutletFile(e.target.files[0]);outletFileInput.value='';});
+
+function handleOutletFile(file){
+  const reader=new FileReader();
+  reader.onload=evt=>{
+    try{
+      const data=new Uint8Array(evt.target.result);const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
+      processOutletUpload(rows);
+    }catch(err){console.error(err);showToast('Gagal membaca file: '+err.message);}
+  };reader.readAsArrayBuffer(file);
+}
+
+function processOutletUpload(rows){
+  const summaryBox=document.getElementById('outletUploadSummary');
+  if(!rows.length){summaryBox.innerHTML='<div class="summary-box summary-warn">File kosong.</div>';return;}
+  const hk=Object.keys(rows[0]);
+  const findKey=patterns=>hk.find(h=>patterns.some(p=>normalizeKey(h)===p||normalizeKey(h).includes(p)));
+  const kCode=findKey(['kodeoutlet','kode','cc']);
+  const kName=findKey(['namaoutlet','nama']);
+  const kAddr=findKey(['alamat','address']);
+  const kTown=findKey(['wilayah','kota','town']);
+  const kSales=findKey(['salesman']);
+  const kPjp=findKey(['haripjp','pjp']);
+  const kLat=findKey(['latitude','lat']);
+  const kLon=findKey(['longitude','lon','long']);
+
+  if(!kCode||!kName||!kLat||!kLon){
+    summaryBox.innerHTML='<div class="summary-box summary-warn"><b>Kolom tidak dikenali.</b> Pastikan ada kolom Kode Outlet, Nama Outlet, Latitude, dan Longitude.</div>';return;
+  }
+
+  let added=0,updated=0;const invalidRows=[];
+  rows.forEach(r=>{
+    const cc=String(r[kCode]||'').trim();
+    const name=String(r[kName]||'').trim();
+    const lat=Number(r[kLat]),lon=Number(r[kLon]);
+    if(!cc||!name){invalidRows.push((cc||'(kosong)')+': kode/nama kosong');return;}
+    if(isNaN(lat)||isNaN(lon)||lat<-90||lat>90||lon<-180||lon>180){invalidRows.push(cc+': koordinat tidak valid');return;}
+    const outlet={cc,n:name,a:kAddr?String(r[kAddr]||'').trim():'',t:kTown?String(r[kTown]||'').trim():'',s:kSales?String(r[kSales]||'').trim():'',p:kPjp?String(r[kPjp]||'').trim():'',lat:Math.round(lat*1e6)/1e6,lon:Math.round(lon*1e6)/1e6};
+    if(outletsExtraLocal[cc]||outletByCc[cc])updated++;else added++;
+    outletsExtraLocal[cc]=outlet;
+  });
+
+  mergeOutlets();
+  document.getElementById('countExtraOutlets').textContent=Object.keys(outletsExtraLocal).length+' tambahan';
+  let html='<div class="summary-box '+(invalidRows.length?'summary-warn':'summary-ok')+'"><b>'+added+' outlet baru, '+updated+' diperbarui</b> dari '+rows.length+' baris.';
+  if(invalidRows.length)html+='<br>⚠ '+invalidRows.length+' baris dilewati:<div class="summary-list">'+invalidRows.slice(0,30).map(escapeHtml).join(', ')+'</div>';
+  html+='</div>';
+  summaryBox.innerHTML=html;
+  showToast(added+' outlet baru, '+updated+' diperbarui. Klik Publikasikan untuk simpan ke Firebase.');
+}
+
+document.getElementById('publishOutletsBtn').addEventListener('click',async()=>{
+  if(!fbConnected){showToast('Belum terhubung ke Firebase.');return;}
+  const ccs=Object.keys(outletsExtraLocal);
+  if(!ccs.length){showToast('Belum ada outlet baru untuk dipublikasikan.');return;}
+  const btn=document.getElementById('publishOutletsBtn');btn.disabled=true;
+  const statusEl=document.getElementById('publishOutletsStatus');
+  statusEl.className='publish-status show wait';statusEl.textContent='Mempublikasikan…';
+  try{
+    for(let i=0;i<ccs.length;i+=400){
+      const chunk=ccs.slice(i,i+400);
+      const batch=db.batch();
+      chunk.forEach(cc=>batch.set(db.collection('outletsExtra').doc(sanitizeDocId(cc)),outletsExtraLocal[cc]));
+      await batch.commit();
+    }
+    statusEl.className='publish-status show ok';statusEl.textContent='✅ '+ccs.length+' outlet berhasil dipublikasikan! Peta tim akan otomatis menampilkannya.';
+    showToast('Outlet baru berhasil dipublikasikan ke Firebase!');
   }catch(err){console.error(err);statusEl.className='publish-status show err';statusEl.textContent='❌ '+err.message;}
   finally{btn.disabled=false;}
 });
