@@ -56,15 +56,19 @@ tr.invoice-row.done{background:#F6FBF7;}
 .detail-hdr .outlet-name{font-family:var(--font-display);font-weight:700;font-size:16px;}
 .detail-hdr .inv-meta{font-size:12px;color:var(--muted);margin-top:2px;}
 .back-btn{border:none;background:var(--surface);color:var(--ink-2);border-radius:9px;padding:9px 14px;font-weight:700;font-size:12.5px;cursor:pointer;flex:none;}
-.sku-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--surface);font-size:12.5px;}
+.sku-row{padding:11px 0;border-bottom:1px solid var(--surface);font-size:12.5px;}
 .sku-row.flash{animation:flashgreen .6s ease;}
 @keyframes flashgreen{0%{background:#BEF0CC;}100%{background:transparent;}}
+.sku-row .sku-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;}
 .sku-row .sname{flex:1;min-width:0;}.sku-row .sname .code{color:var(--muted);font-size:10.5px;display:block;}
-.sku-row .sexpected{flex:none;font-size:10.5px;color:var(--muted);width:78px;text-align:center;line-height:1.3;}
-.sku-row input{width:58px;flex:none;text-align:center;padding:6px 4px;font-size:13px;border:1.5px solid var(--line);border-radius:8px;}
-.sku-row input.match{border-color:var(--go);background:#F1F8F3;}
-.sku-row input.mismatch{border-color:var(--danger);background:#FEF1F0;}
 .sku-icon{flex:none;width:20px;text-align:center;font-size:13px;}
+.qty-fields{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-left:28px;}
+.qty-fields .qfield{text-align:center;}
+.qty-fields label{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px;}
+.qty-fields input{width:100%;text-align:center;padding:7px 4px;font-size:14px;border:1.5px solid var(--line);border-radius:8px;}
+.qty-fields input.match{border-color:var(--go);background:#F1F8F3;}
+.qty-fields input.mismatch{border-color:var(--danger);background:#FEF1F0;}
+.qty-fields .qexp{display:block;font-size:9.5px;color:var(--muted);margin-top:3px;}
 .scan-btn{background:var(--live);color:#fff;border:none;border-radius:8px;padding:11px 12px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;width:100%;justify-content:center;margin-bottom:12px;}
 .save-row-btn{margin-top:12px;}
 /* Scanner modal */
@@ -222,15 +226,19 @@ function buildVehicleChips(){
 
 /* ===== List View ===== */
 function checkKey(invoiceNo,sku){return sanitizeDocId(invoiceNo+'|'+sku);}
+function lineIsMatch(ck,line){
+  return Number(ck.qty_karton)===Number(line.caseQty||0)
+    && Number(ck.qty_lusin)===Number(line.dozenQty||0)
+    && Number(ck.qty_pcs)===Number(line.piecesQty||0);
+}
 function invoiceCheckStatus(invNo){
   const inv=INVOICES[invNo];
   if(!inv||!inv.lines||!inv.lines.length)return'nodata';
   let allFilled=true,allMatch=true;
   inv.lines.forEach(line=>{
     const ck=MUAT_CHECK.checks[checkKey(invNo,line.skuCode)];
-    const loaded=ck?ck.qty_loaded:'';
-    if(loaded===''||loaded==null){allFilled=false;return;}
-    if(Number(loaded)!==Number(line.totalPcs))allMatch=false;
+    if(!ck){allFilled=false;return;}
+    if(!lineIsMatch(ck,line))allMatch=false;
   });
   if(!allFilled)return'pending';
   return allMatch?'ok':'mismatch';
@@ -316,20 +324,39 @@ function renderDetail(invNo){
   }
   area.innerHTML=inv.lines.map((line,i)=>{
     const ck=MUAT_CHECK.checks[checkKey(invNo,line.skuCode)];
-    const loaded=ck?ck.qty_loaded:'';
-    const isMatch=loaded!==''&&loaded!=null&&Number(loaded)===Number(line.totalPcs);
-    const icon=loaded===''||loaded==null?'⬜':(isMatch?'✅':'⚠️');
+    const filled=!!ck;
+    const isMatch=filled&&lineIsMatch(ck,line);
+    const icon=!filled?'⬜':(isMatch?'✅':'⚠️');
     const masterInfo=SKU_MASTER.skuInfo&&SKU_MASTER.skuInfo[line.skuCode];
     const pcPerCs=masterInfo&&masterInfo.p;
     const caseHint=pcPerCs?(' · '+pcPerCs+' pcs/karton'):'';
-    return '<div class="sku-row" data-sku="'+escapeHtml(line.skuCode)+'"><span class="sku-icon">'+icon+'</span><div class="sname">'+escapeHtml(line.skuName)+'<span class="code">'+escapeHtml(line.skuCode)+caseHint+'</span></div><span class="sexpected">exp: '+line.totalPcs+' pcs</span><input type="number" min="0" data-sku="'+escapeHtml(line.skuCode)+'" data-idx="'+i+'" value="'+(loaded===''||loaded==null?'':loaded)+'" class="'+(loaded===''||loaded==null?'':(isMatch?'match':'mismatch'))+'" placeholder="qty"></div>';
+    const kVal=filled?ck.qty_karton:'', lVal=filled?ck.qty_lusin:'', pVal=filled?ck.qty_pcs:'';
+    const kCls=filled?(Number(ck.qty_karton)===Number(line.caseQty||0)?'match':'mismatch'):'';
+    const lCls=filled?(Number(ck.qty_lusin)===Number(line.dozenQty||0)?'match':'mismatch'):'';
+    const pCls=filled?(Number(ck.qty_pcs)===Number(line.piecesQty||0)?'match':'mismatch'):'';
+    return '<div class="sku-row" data-sku="'+escapeHtml(line.skuCode)+'" data-case="'+(line.caseQty||0)+'" data-dozen="'+(line.dozenQty||0)+'" data-pieces="'+(line.piecesQty||0)+'">'
+      +'<div class="sku-top"><span class="sku-icon">'+icon+'</span><div class="sname">'+escapeHtml(line.skuName)+'<span class="code">'+escapeHtml(line.skuCode)+caseHint+'</span></div></div>'
+      +'<div class="qty-fields">'
+      +'<div class="qfield"><label>Karton</label><input type="number" min="0" class="karton-input '+kCls+'" value="'+kVal+'" placeholder="0"><span class="qexp">exp: '+(line.caseQty||0)+'</span></div>'
+      +'<div class="qfield"><label>Lusin</label><input type="number" min="0" class="lusin-input '+lCls+'" value="'+lVal+'" placeholder="0"><span class="qexp">exp: '+(line.dozenQty||0)+'</span></div>'
+      +'<div class="qfield"><label>Pcs</label><input type="number" min="0" class="pcs-input '+pCls+'" value="'+pVal+'" placeholder="0"><span class="qexp">exp: '+(line.piecesQty||0)+'</span></div>'
+      +'</div></div>';
   }).join('');
-  area.querySelectorAll('input[type=number]').forEach(inp=>{
-    inp.addEventListener('input',()=>{
-      const expected=inp.closest('.sku-row').querySelector('.sexpected').textContent.replace('exp: ','').replace(' pcs','');
-      if(inp.value===''){inp.className='';return;}
-      inp.className=Number(inp.value)===Number(expected)?'match':'mismatch';
-    });
+  area.querySelectorAll('.sku-row').forEach(row=>{
+    const recalcRow=()=>{
+      const kInp=row.querySelector('.karton-input'),lInp=row.querySelector('.lusin-input'),pInp=row.querySelector('.pcs-input');
+      const expCase=Number(row.dataset.case),expDozen=Number(row.dataset.dozen),expPieces=Number(row.dataset.pieces);
+      [[kInp,expCase],[lInp,expDozen],[pInp,expPieces]].forEach(([inp,exp])=>{
+        if(inp.value===''){inp.className=inp.className.replace(/\b(match|mismatch)\b/g,'').trim();return;}
+        const isM=Number(inp.value)===exp;
+        inp.className=inp.className.replace(/\b(match|mismatch)\b/g,'').trim()+' '+(isM?'match':'mismatch');
+      });
+      const icon=row.querySelector('.sku-icon');
+      if(kInp.value===''||lInp.value===''||pInp.value===''){icon.textContent='⬜';return;}
+      const allMatch=Number(kInp.value)===expCase&&Number(lInp.value)===expDozen&&Number(pInp.value)===expPieces;
+      icon.textContent=allMatch?'✅':'⚠️';
+    };
+    row.querySelectorAll('input[type=number]').forEach(inp=>inp.addEventListener('input',recalcRow));
   });
 }
 
@@ -337,15 +364,22 @@ document.getElementById('saveDetailBtn').addEventListener('click',()=>saveInvoic
 
 async function saveInvoiceCheck(invoiceNo){
   if(!fbConnected){showToast('Belum terhubung ke Firebase.');return;}
-  const inputs=document.querySelectorAll('#skuRowsArea input[type=number]');
+  const rows=document.querySelectorAll('#skuRowsArea .sku-row');
   const nowIso=new Date().toISOString();
   const newChecks={};
   let hasEmpty=false;
-  inputs.forEach(inp=>{
-    if(inp.value===''){hasEmpty=true;return;}
-    newChecks[checkKey(invoiceNo,inp.dataset.sku)]={invoiceNo,sku:inp.dataset.sku,qty_loaded:Number(inp.value),checked_at:nowIso};
+  rows.forEach(row=>{
+    const sku=row.dataset.sku;
+    const kInp=row.querySelector('.karton-input'),lInp=row.querySelector('.lusin-input'),pInp=row.querySelector('.pcs-input');
+    if(kInp.value===''&&lInp.value===''&&pInp.value==='')return; // baris belum disentuh sama sekali, lewati
+    if(kInp.value===''||lInp.value===''||pInp.value===''){hasEmpty=true;return;}
+    const karton=Number(kInp.value),lusin=Number(lInp.value),pcs=Number(pInp.value);
+    const masterInfo=SKU_MASTER.skuInfo&&SKU_MASTER.skuInfo[sku];
+    const pcPerCs=(masterInfo&&masterInfo.p)||0;
+    const qtyLoadedPcs=(karton*pcPerCs)+(lusin*12)+pcs;
+    newChecks[checkKey(invoiceNo,sku)]={invoiceNo,sku,qty_karton:karton,qty_lusin:lusin,qty_pcs:pcs,qty_loaded:qtyLoadedPcs,checked_at:nowIso};
   });
-  if(hasEmpty&&!confirm('Ada SKU yang belum diisi qty-nya. Simpan yang sudah diisi saja?'))return;
+  if(hasEmpty&&!confirm('Ada baris SKU yang belum lengkap ketiga kolomnya (Karton/Lusin/Pcs). Simpan yang sudah lengkap saja?'))return;
   if(!Object.keys(newChecks).length){showToast('Belum ada qty yang diisi.');return;}
   const btn=document.getElementById('saveDetailBtn');btn.disabled=true;btn.textContent='Menyimpan…';
   try{
@@ -360,10 +394,10 @@ async function saveInvoiceCheck(invoiceNo){
 
 /* ===== Barcode Scanner with cross-invoice matching ===== */
 function resolveScannedCode(code){
-  const candidates=[code];
+  const candidates=[{s:code,k:null}];
   const stripped=code.replace(/^0+/,'')||'0';
   const master=(SKU_MASTER.barcodeToSku&&(SKU_MASTER.barcodeToSku[code]||SKU_MASTER.barcodeToSku[stripped]))||[];
-  master.forEach(e=>{if(!candidates.includes(e.s))candidates.push(e.s);});
+  master.forEach(e=>{if(!candidates.some(c=>c.s===e.s))candidates.push({s:e.s,k:e.k});});
   return candidates;
 }
 
@@ -394,19 +428,21 @@ function onScanSuccess(decodedText){
   const inv=INVOICES[currentInvoiceNo];
 
   // 1) Cek dulu apakah ada di invoice yang SEDANG dibuka
-  let matchedSku=null;
+  let matched=null;
   for(const cand of candidates){
-    if(inv&&inv.lines&&inv.lines.some(l=>l.skuCode===cand)){matchedSku=cand;break;}
+    if(inv&&inv.lines&&inv.lines.some(l=>l.skuCode===cand.s)){matched=cand;break;}
   }
-  if(matchedSku){
-    const row=document.querySelector('.sku-row[data-sku="'+CSS.escape(matchedSku)+'"]');
+  if(matched){
+    const row=document.querySelector('.sku-row[data-sku="'+CSS.escape(matched.s)+'"]');
     if(row){
-      const input=row.querySelector('input[type=number]');
-      const current=input.value===''?0:Number(input.value);
-      input.value=current+1;
-      input.dispatchEvent(new Event('input'));
+      // Barcode karton (CS) menambah kolom Karton; barcode satuan (PC) menambah kolom Pcs.
+      const targetInput=matched.k==='CS'?row.querySelector('.karton-input'):row.querySelector('.pcs-input');
+      const unitLabel=matched.k==='CS'?'karton':'pcs';
+      const current=targetInput.value===''?0:Number(targetInput.value);
+      targetInput.value=current+1;
+      targetInput.dispatchEvent(new Event('input'));
       row.classList.remove('flash');void row.offsetWidth;row.classList.add('flash');
-      feedback.textContent='✅ '+row.querySelector('.sname').textContent.split('\n')[0]+' → '+input.value+' pcs';
+      feedback.textContent='✅ '+row.querySelector('.sname').textContent.split('\n')[0]+' → +1 '+unitLabel+' ('+targetInput.value+')';
       feedback.className='scan-feedback ok';
       if(navigator.vibrate)navigator.vibrate(80);
     }
@@ -416,8 +452,8 @@ function onScanSuccess(decodedText){
   // 2) Tidak ada di invoice ini — cek apakah ada di invoice LAIN dalam rencana hari ini
   let otherInvoiceNo=null,otherSku=null;
   for(const cand of candidates){
-    const owners=(skuToInvoices[cand]||[]).filter(n=>n!==currentInvoiceNo);
-    if(owners.length){otherInvoiceNo=owners[0];otherSku=cand;break;}
+    const owners=(skuToInvoices[cand.s]||[]).filter(n=>n!==currentInvoiceNo);
+    if(owners.length){otherInvoiceNo=owners[0];otherSku=cand.s;break;}
   }
   if(otherInvoiceNo){
     const otherInv=INVOICES[otherInvoiceNo];
@@ -431,7 +467,7 @@ function onScanSuccess(decodedText){
   }
 
   // 3) Sama sekali tidak dikenali di invoice manapun hari ini
-  const knownName=SKU_MASTER.skuInfo&&candidates.map(c=>SKU_MASTER.skuInfo[c]&&SKU_MASTER.skuInfo[c].n).find(Boolean);
+  const knownName=SKU_MASTER.skuInfo&&candidates.map(c=>SKU_MASTER.skuInfo[c.s]&&SKU_MASTER.skuInfo[c.s].n).find(Boolean);
   feedback.textContent=knownName
     ? '❌ "'+knownName+'" dikenali sebagai produk, tapi tidak ada di invoice manapun hari ini. Cek ulang barangnya.'
     : '❌ Barcode "'+decodedText+'" tidak dikenali. Cek ulang atau cari barang yang sesuai.';
